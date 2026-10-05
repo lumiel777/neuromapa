@@ -147,7 +147,16 @@ nunca escribe en la memoria. Cuando encuentra un problema se lo cuenta a Claude,
 
 - **Nada sale de tu computadora.** No hay telemetría ni servidor propio. El servidor del mapa escucha solo en
   `127.0.0.1` y pide una clave. Las dos bibliotecas que usa la página (d3 y marked) vienen adentro, en `vendor/`, así
-  que el mapa anda sin internet.
+  que el mapa anda sin internet. Solo si faltaran esos archivos o no coincidieran con su huella, la página las pide a
+  `cdn.jsdelivr.net`, con una huella (SRI) que el navegador comprueba antes de usarlas.
+- **Qué corre en tu PC:** los hooks de Claude Code corren los `hook_*.py` con tu Python. El médico lee la historia de
+  tus proyectos con `git`, solo para leer; el historial guarda las versiones de tus notas con `git`, en un repositorio
+  propio dentro de la carpeta de datos. `/neuromapa:abrir` levanta el servidor del mapa y abre tu navegador. El índice
+  de búsqueda y la lista de problemas se rearman en segundo plano con el mismo Python. Dormir con Claude, si lo
+  prendés, corre tu `claude`. `herramientas/bajar_librerias.py` baja d3 y marked de `cdn.jsdelivr.net`, pero es para
+  quien mantiene el proyecto: ningún hook lo corre. El código de `demo/` es de proyectos inventados y no se ejecuta.
+- **Solo cambia una nota si lo aprobás:** el repaso de la noche propone arreglos y `--aplicar` cambia solo los que
+  elijas. Fuera de eso, Neuromapa no escribe en tus notas.
 - **Dormir con Claude, solo si lo prendés** (`dormir_con_claude` en el `config.json`): la pasada de cada día le manda a
   Claude, con tu propio Claude Code, renglones de tus notas y los cambios de algunos commits (nunca los de archivos
   sensibles), igual que en cualquier charla, y gasta de tu cuenta hasta el tope que pongas por día.

@@ -149,6 +149,16 @@ writes to the memory. When it finds a problem it tells Claude, and it's Claude w
 
 - **Nothing leaves your computer.** No telemetry, no server of ours. The map's server only listens on `127.0.0.1` and
   asks for a key. The two libraries the page uses (d3 and marked) ship inside, in `vendor/`, so the map works offline.
+  Only if those files were missing or didn't match their hash would the page fetch them from `cdn.jsdelivr.net`, with
+  a hash (SRI) the browser checks before using them.
+- **What runs on your PC:** Claude Code's hooks run the `hook_*.py` files with your Python. The doctor reads your
+  projects' history with `git`, read-only; the history keeps your notes' versions with `git`, in its own repository
+  inside the data folder. `/neuromapa:abrir` starts the map's server and opens your browser. The search index and the
+  problem list are rebuilt in the background with the same Python. Sleeping with Claude, if you turn it on, runs your
+  `claude`. `herramientas/bajar_librerias.py` downloads d3 and marked from `cdn.jsdelivr.net`, but it is for whoever
+  maintains the project: no hook runs it. The code in `demo/` belongs to made-up projects and is never run.
+- **It only changes a note if you approve it:** the nightly pass proposes fixes and `--aplicar` changes only the ones
+  you pick. Other than that, Neuromapa doesn't write to your notes.
 - **Sleeping with Claude, only if you turn it on** (`dormir_con_claude` in `config.json`): the daily pass sends Claude,
   through your own Claude Code, lines from your notes and the changes of some commits (never those of sensitive files),
   just like any chat, and spends from your account up to the daily cap you set.
