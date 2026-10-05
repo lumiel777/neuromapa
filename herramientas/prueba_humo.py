@@ -1499,6 +1499,22 @@ def revisar_indice_guardado(t):
            "armaba entero mientras Claude esperaba)",
            isinstance(de_dias, buscador.Indice) and not de_dias.buscar("viejapalabraunica")["resultados"]
            and con_el_viejo == 1, (type(de_dias).__name__, con_el_viejo))
+    marca = ruta.parent / buscador.REARMANDO
+    lanzados = []
+    lanzar = subprocess.Popen
+    subprocess.Popen = lambda *a, **k: lanzados.append(a)
+    try:
+        con_marca = []
+        for adelanto in (0.05, 3600):
+            marca.write_text("1\n", encoding="utf-8")
+            os.utime(marca, (time.time() + adelanto,) * 2)
+            con_marca.append(buscador.rearmar_de_fondo(ruta))
+    finally:
+        subprocess.Popen = lanzar
+        marca.unlink(missing_ok=True)
+    probar("una marca de rearmado apenas en el futuro (en Windows, el reloj de Python 3.10 va a saltos de ~15 ms) cuenta "
+           "como recién puesta y no rearma dos veces; una de una hora en el futuro (reloj atrasado) no traba",
+           con_marca == [False, True] and len(lanzados) == 1, (con_marca, len(lanzados)))
     probar("si no hay índice que sirva (la primera vez o después de actualizar), el hook lo manda a armar de fondo y "
            "sigue sin pista, en vez de armarlo adentro (con memorias grandes chocaba con el tope de 10 s y el índice no "
            "se guardaba nunca)", sin_indice is None and tardo < 3 and pista is None and len(llamadas) >= 2,
@@ -5157,9 +5173,15 @@ def revisar_aprender(t):
     sin_visto = aprender.quizas(ventana)
     os.utime(ventana / aprender.ARCHIVO, (hace_rato, hace_rato))
     (ventana / aprender.VISTO).touch()
+    adelantado = time.time() + 0.05
+    os.utime(ventana / aprender.VISTO, (adelantado, adelantado))
     con_visto = aprender.quizas(ventana)
-    probar("la vuelta sin nada nuevo cuenta para no rearmar de nuevo en seguida", sin_visto and not con_visto,
-           (sin_visto, con_visto))
+    os.utime(ventana / aprender.ARCHIVO, (hace_rato, hace_rato))
+    os.utime(ventana / aprender.VISTO, (time.time() + 3600,) * 2)
+    reloj_atrasado = aprender.quizas(ventana)
+    probar("la vuelta sin nada nuevo cuenta para no rearmar de nuevo en seguida, aunque su marca quede unos milisegundos "
+           "en el futuro (el reloj de Python 3.10 en Windows va a saltos); una marca de una hora en el futuro no traba",
+           sin_visto and not con_visto and reloj_atrasado, (sin_visto, con_visto, reloj_atrasado))
     lento = t / "aprender-lento"
     lento.mkdir()
     (lento / "eventos.jsonl").write_bytes(b"".join(json.dumps(ev(i, real, f=str(t / f"n{i % 50}.md"))).encode("utf-8")

@@ -91,7 +91,7 @@ def quizas(carpeta=None, ahora=None, cada=CADA):
         hecho = max(hecho, (carpeta / VISTO).stat().st_mtime)
     except OSError:
         pass
-    if 0 <= ahora - hecho < cada and not (carpeta / SIGUE).exists():
+    if archivos.reciente(hecho, cada, ahora) and not (carpeta / SIGUE).exists():
         return False
     candado = tomar_candado(carpeta)
     if candado is None and archivos.hay_candados():

@@ -15,6 +15,7 @@ except ImportError:
     fcntl = None
 
 ESPERA_REEMPLAZO = 2.0
+HOLGURA_RELOJ = 2.0
 CARPETAS_SENSIBLES = (".ssh", ".aws", ".gnupg", ".kube", ".docker", ".azure", "gcloud", ".password-store")
 EXTENSIONES_SENSIBLES = ("pem", "key", "pfx", "p12", "ppk", "kdbx", "jks", "keystore", "tfstate", "tfstate.backup",
                          "tfvars", "ovpn")
@@ -132,6 +133,11 @@ def soltar_candado(fd):
 
 def hay_candados():
     return msvcrt is not None or fcntl is not None
+
+
+def reciente(marca, espera, ahora=None):
+    ahora = time.time() if ahora is None else ahora
+    return -HOLGURA_RELOJ <= ahora - marca < espera
 
 
 def dentro(ruta, raiz):

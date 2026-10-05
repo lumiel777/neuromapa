@@ -1267,7 +1267,7 @@ def ruta_del_indice():
 def rearmar_de_fondo(ruta):
     marca = ruta.parent / REARMANDO
     try:
-        if 0 <= time.time() - marca.stat().st_mtime < ESPERA_REARMADO:
+        if archivos.reciente(marca.stat().st_mtime, ESPERA_REARMADO):
             return False
     except OSError:
         pass

@@ -3,6 +3,13 @@
 Las versiones siguen el número de `.claude-plugin/plugin.json` (`claude plugin list` lo muestra, y Claude lo ve con `neuromapa --version`). Cada versión que
 sale sube ese número; si no, la actualización puede no traer nada (ver [CONTRIBUTING.md](CONTRIBUTING.md)).
 
+## 0.1.2 — en prueba
+
+- En Windows con Python 3.10 a 3.12, lo aprendido a veces se volvía a repasar enseguida y el índice de búsqueda se
+  podía rearmar dos veces seguidas: el reloj de esas versiones va a saltos y una marca recién puesta parecía estar
+  unos milisegundos en el futuro. Ahora se acepta esa diferencia, y un reloj atrasado de verdad sigue sin trabar nada.
+- Las pruebas de GitHub también corren solas cada lunes y con el botón «Run workflow».
+
 ## 0.1.1 — en prueba
 
 - El mapa arranca sin preguntarle a la red el nombre de la computadora, que no usaba. En algunas Mac esa pregunta
