@@ -10,6 +10,7 @@ import queue
 import re
 import secrets
 import socket
+import socketserver
 import subprocess
 import sys
 import threading
@@ -1206,6 +1207,10 @@ class Manejador(http.server.SimpleHTTPRequestHandler):
 class Servidor(http.server.ThreadingHTTPServer):
     daemon_threads = True
     allow_reuse_address = os.name != "nt"
+
+    def server_bind(self):
+        socketserver.TCPServer.server_bind(self)
+        self.server_name, self.server_port = self.server_address[:2]
 
     def handle_error(self, request, client_address):
         if isinstance(sys.exc_info()[1], (ConnectionError, TimeoutError)):

@@ -3,6 +3,14 @@
 Las versiones siguen el número de `.claude-plugin/plugin.json` (`claude plugin list` lo muestra, y Claude lo ve con `neuromapa --version`). Cada versión que
 sale sube ese número; si no, la actualización puede no traer nada (ver [CONTRIBUTING.md](CONTRIBUTING.md)).
 
+## 0.1.1 — en prueba
+
+- El mapa arranca sin preguntarle a la red el nombre de la computadora, que no usaba. En algunas Mac esa pregunta
+  hacía esperar unos 35 segundos cada vez que se abría el mapa.
+- Las pruebas automáticas de GitHub: Chrome tiene de nuevo 3 minutos para abrir la página. Si en una máquina de
+  GitHub se cuelga igual, esa prueba se saltea con el motivo; en una computadora común sigue siendo una prueba. Además,
+  el arranque doble tiene más tiempo en máquinas lentas, cada prueba se ve con su hora y todo se corta a los 30 minutos.
+
 ## 0.1.0 — en prueba
 
 Primera versión, para los primeros probadores.
