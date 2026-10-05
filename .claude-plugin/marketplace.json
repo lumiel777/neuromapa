@@ -1,0 +1,14 @@
+{
+  "name": "neuromapa",
+  "description": "Neuromapa: la memoria de Claude Code como un cerebro 3D en vivo, con médico y buscador.",
+  "owner": {
+    "name": "Cristofer Bonifacio"
+  },
+  "plugins": [
+    {
+      "name": "neuromapa",
+      "source": "./",
+      "description": "La memoria de Claude Code como un cerebro 3D en vivo, con un médico que avisa los datos viejos y un buscador que le da a Claude lo que ya sabe."
+    }
+  ]
+}

@@ -1,0 +1,163 @@
+{
+ "usuario": "Alex",
+ "lobulos": {
+  "prefrontal": "Prefrontal · Instrucciones",
+  "frontal": "Frontal · Ideas y planes",
+  "temporal": "Temporal · Memoria del vivero",
+  "parietal": "Parietal · Memoria de trailbot",
+  "occipital": "Occipital · Documentos del vivero",
+  "cerebelo": "Cerebelo · Docs de trailbot",
+  "tronco": "Tronco · Archivo"
+ },
+ "fuentes": [
+  {
+   "id": "instrucciones",
+   "nombre": "Instrucciones (CLAUDE.md)",
+   "color": "#F59F00",
+   "patron": "CLAUDE.md",
+   "raices": [
+    [
+     "claude",
+     false,
+     "usuario"
+    ],
+    [
+     "proyectos/vivero",
+     false,
+     "vivero"
+    ],
+    [
+     "proyectos/trailbot",
+     false,
+     "trailbot"
+    ]
+   ],
+   "foco": true,
+   "prioridad": 1,
+   "lobulo": "prefrontal"
+  },
+  {
+   "id": "memoria-vivero",
+   "nombre": "Memoria · vivero",
+   "color": "#E64980",
+   "memoria": true,
+   "proyecto": "proyectos/vivero",
+   "raices": [
+    [
+     "claude/projects/C--alex-vivero/memory",
+     false,
+     ""
+    ]
+   ],
+   "foco": true,
+   "prioridad": 0,
+   "lobulo": "temporal"
+  },
+  {
+   "id": "memoria-trailbot",
+   "nombre": "Memory · trailbot",
+   "color": "#F783AC",
+   "memoria": true,
+   "proyecto": "proyectos/trailbot",
+   "raices": [
+    [
+     "claude/projects/C--alex-trailbot/memory",
+     false,
+     ""
+    ]
+   ],
+   "foco": true,
+   "prioridad": 0,
+   "lobulo": "parietal"
+  },
+  {
+   "id": "vivero-docs",
+   "nombre": "Vivero · Documentos",
+   "color": "#12B886",
+   "raices": [
+    [
+     "proyectos/vivero/docs",
+     true,
+     ""
+    ]
+   ],
+   "foco": true,
+   "lobulo": "occipital"
+  },
+  {
+   "id": "trailbot-docs",
+   "nombre": "Trailbot · Docs",
+   "color": "#5C7CFA",
+   "raices": [
+    [
+     "proyectos/trailbot/docs",
+     true,
+     ""
+    ]
+   ],
+   "foco": true,
+   "lobulo": "cerebelo"
+  },
+  {
+   "id": "ideas",
+   "nombre": "Ideas y decisiones",
+   "color": "#51CF66",
+   "raices": [
+    [
+     "ideas",
+     false,
+     ""
+    ]
+   ],
+   "registro": true,
+   "foco": true,
+   "peso_busqueda": 0.7,
+   "planes_vigentes": true,
+   "lobulo": "frontal"
+  },
+  {
+   "id": "archivo",
+   "nombre": "Archivo",
+   "color": "#868E96",
+   "raices": [
+    [
+     "archivo",
+     false,
+     ""
+    ]
+   ],
+   "historico": true,
+   "prioridad": 3,
+   "lobulo": "tronco"
+  }
+ ],
+ "proyectos": [
+  {
+   "raiz": "proyectos/vivero",
+   "alias": "vivero",
+   "extensiones": [
+    "cs",
+    "json"
+   ],
+   "codigo": [
+    "proyectos/vivero/src"
+   ]
+  },
+  {
+   "raiz": "proyectos/trailbot",
+   "alias": "trailbot",
+   "extensiones": [
+    "py",
+    "csv"
+   ],
+   "codigo": [
+    "proyectos/trailbot/bot"
+   ]
+  }
+ ],
+ "prefijos_tabla": [
+  "stock",
+  "riego",
+  "trail"
+ ]
+}

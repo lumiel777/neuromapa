@@ -1,0 +1,29 @@
+{
+ "hechos": [
+  {
+   "nota": "instrucciones:vivero/CLAUDE.md",
+   "que": "módulos de la API (un .cs por módulo)",
+   "patron": "La API tiene \\*\\*(\\d+) módulos",
+   "como_contar": {
+    "tipo": "archivos",
+    "carpeta": "proyectos/vivero/src/Vivero.Api/Modulos",
+    "extensiones": [
+     ".cs"
+    ]
+   }
+  },
+  {
+   "nota": "memoria-trailbot:telegram-commands.md",
+   "que": "handlers in bot/handlers",
+   "patron": "answers \\*\\*(\\d+) commands",
+   "como_contar": {
+    "tipo": "archivos",
+    "carpeta": "proyectos/trailbot/bot/handlers",
+    "extensiones": [
+     ".py"
+    ],
+    "excluir": "^__init__"
+   }
+  }
+ ]
+}

@@ -1,0 +1,13 @@
+[Unit]
+Description=trailbot Telegram webhook
+After=network-online.target postgresql.service
+
+[Service]
+User=trailbot
+WorkingDirectory=/opt/trailbot/current
+EnvironmentFile=/etc/trailbot/env
+ExecStart=/opt/trailbot/venv/bin/uvicorn bot.main:app --host 127.0.0.1 --port 8081
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

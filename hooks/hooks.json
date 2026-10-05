@@ -1,0 +1,47 @@
+{
+  "hooks": {
+    "SessionStart": [
+      { "hooks": [
+        { "type": "command", "command": "/bin/sh \"${CLAUDE_PLUGIN_ROOT}/scripts/python.sh\" --avisar -I -S \"${CLAUDE_PLUGIN_ROOT}/hook_inicio.py\" \\; . \"${CLAUDE_PLUGIN_ROOT}/scripts/python.cmd\" --avisar hook_inicio.py", "timeout": 10 },
+        { "type": "command", "command": "/bin/sh \"${CLAUDE_PLUGIN_ROOT}/scripts/python.sh\" -I -S \"${CLAUDE_PLUGIN_ROOT}/hook_cerebro.py\" \\; . \"${CLAUDE_PLUGIN_ROOT}/scripts/python.cmd\" hook_cerebro.py", "timeout": 5, "async": true }
+      ] },
+      { "matcher": "compact", "hooks": [ { "type": "command", "command": "/bin/sh \"${CLAUDE_PLUGIN_ROOT}/scripts/python.sh\" -I -S \"${CLAUDE_PLUGIN_ROOT}/hook_guardar.py\" \\; . \"${CLAUDE_PLUGIN_ROOT}/scripts/python.cmd\" hook_guardar.py", "timeout": 10 } ] }
+    ],
+    "PreToolUse": [
+      { "matcher": "*", "hooks": [ { "type": "command", "command": "/bin/sh \"${CLAUDE_PLUGIN_ROOT}/scripts/python.sh\" -I -S \"${CLAUDE_PLUGIN_ROOT}/hook_cerebro.py\" \\; . \"${CLAUDE_PLUGIN_ROOT}/scripts/python.cmd\" hook_cerebro.py", "timeout": 5, "async": true } ] },
+      { "matcher": "Agent|Task|Workflow", "hooks": [ { "type": "command", "command": "/bin/sh \"${CLAUDE_PLUGIN_ROOT}/scripts/python.sh\" -I -S \"${CLAUDE_PLUGIN_ROOT}/hook_freno.py\" \\; . \"${CLAUDE_PLUGIN_ROOT}/scripts/python.cmd\" hook_freno.py", "timeout": 10 } ] }
+    ],
+    "PostToolUse": [
+      { "matcher": "*", "hooks": [ { "type": "command", "command": "/bin/sh \"${CLAUDE_PLUGIN_ROOT}/scripts/python.sh\" -I -S \"${CLAUDE_PLUGIN_ROOT}/hook_cerebro.py\" \\; . \"${CLAUDE_PLUGIN_ROOT}/scripts/python.cmd\" hook_cerebro.py", "timeout": 5, "async": true } ] },
+      { "matcher": "Write", "hooks": [ { "type": "command", "command": "/bin/sh \"${CLAUDE_PLUGIN_ROOT}/scripts/python.sh\" -I -S \"${CLAUDE_PLUGIN_ROOT}/hook_parecidas.py\" \\; . \"${CLAUDE_PLUGIN_ROOT}/scripts/python.cmd\" hook_parecidas.py", "timeout": 10, "async": true } ] },
+      { "matcher": "Edit|Write|MultiEdit|NotebookEdit", "hooks": [ { "type": "command", "command": "/bin/sh \"${CLAUDE_PLUGIN_ROOT}/scripts/python.sh\" -I -S \"${CLAUDE_PLUGIN_ROOT}/hook_choques.py\" \\; . \"${CLAUDE_PLUGIN_ROOT}/scripts/python.cmd\" hook_choques.py", "timeout": 5, "async": true } ] }
+    ],
+    "PostToolUseFailure": [
+      { "matcher": "*", "hooks": [ { "type": "command", "command": "/bin/sh \"${CLAUDE_PLUGIN_ROOT}/scripts/python.sh\" -I -S \"${CLAUDE_PLUGIN_ROOT}/hook_cerebro.py\" \\; . \"${CLAUDE_PLUGIN_ROOT}/scripts/python.cmd\" hook_cerebro.py", "timeout": 5, "async": true } ] }
+    ],
+    "UserPromptSubmit": [
+      { "hooks": [
+        { "type": "command", "command": "/bin/sh \"${CLAUDE_PLUGIN_ROOT}/scripts/python.sh\" -I -S \"${CLAUDE_PLUGIN_ROOT}/hook_cerebro.py\" \\; . \"${CLAUDE_PLUGIN_ROOT}/scripts/python.cmd\" hook_cerebro.py", "timeout": 5, "async": true },
+        { "type": "command", "command": "/bin/sh \"${CLAUDE_PLUGIN_ROOT}/scripts/python.sh\" -I -S \"${CLAUDE_PLUGIN_ROOT}/hook_servir.py\" \\; . \"${CLAUDE_PLUGIN_ROOT}/scripts/python.cmd\" hook_servir.py", "timeout": 10 }
+      ] }
+    ],
+    "Stop": [
+      { "hooks": [
+        { "type": "command", "command": "/bin/sh \"${CLAUDE_PLUGIN_ROOT}/scripts/python.sh\" -I -S \"${CLAUDE_PLUGIN_ROOT}/hook_cerebro.py\" \\; . \"${CLAUDE_PLUGIN_ROOT}/scripts/python.cmd\" hook_cerebro.py", "timeout": 5, "async": true },
+        { "type": "command", "command": "/bin/sh \"${CLAUDE_PLUGIN_ROOT}/scripts/python.sh\" -I -S \"${CLAUDE_PLUGIN_ROOT}/hook_guardar.py\" \\; . \"${CLAUDE_PLUGIN_ROOT}/scripts/python.cmd\" hook_guardar.py", "timeout": 10 }
+      ] }
+    ],
+    "SubagentStop": [
+      { "hooks": [ { "type": "command", "command": "/bin/sh \"${CLAUDE_PLUGIN_ROOT}/scripts/python.sh\" -I -S \"${CLAUDE_PLUGIN_ROOT}/hook_cerebro.py\" \\; . \"${CLAUDE_PLUGIN_ROOT}/scripts/python.cmd\" hook_cerebro.py", "timeout": 5, "async": true } ] }
+    ],
+    "Notification": [
+      { "hooks": [ { "type": "command", "command": "/bin/sh \"${CLAUDE_PLUGIN_ROOT}/scripts/python.sh\" -I -S \"${CLAUDE_PLUGIN_ROOT}/hook_cerebro.py\" \\; . \"${CLAUDE_PLUGIN_ROOT}/scripts/python.cmd\" hook_cerebro.py", "timeout": 5, "async": true } ] }
+    ],
+    "PreCompact": [
+      { "hooks": [ { "type": "command", "command": "/bin/sh \"${CLAUDE_PLUGIN_ROOT}/scripts/python.sh\" -I -S \"${CLAUDE_PLUGIN_ROOT}/hook_cerebro.py\" \\; . \"${CLAUDE_PLUGIN_ROOT}/scripts/python.cmd\" hook_cerebro.py", "timeout": 5, "async": true } ] }
+    ],
+    "SessionEnd": [
+      { "hooks": [ { "type": "command", "command": "/bin/sh \"${CLAUDE_PLUGIN_ROOT}/scripts/python.sh\" -I -S \"${CLAUDE_PLUGIN_ROOT}/hook_cerebro.py\" \\; . \"${CLAUDE_PLUGIN_ROOT}/scripts/python.cmd\" hook_cerebro.py", "timeout": 5 } ] }
+    ]
+  }
+}

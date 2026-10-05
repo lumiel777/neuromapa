@@ -1,0 +1,33 @@
+{
+  "name": "neuromapa",
+  "displayName": "Neuromapa",
+  "version": "0.1.0",
+  "description": "La memoria de Claude Code como un cerebro 3D en vivo, con un médico que avisa los datos viejos y un buscador que le da a Claude lo que ya sabe.",
+  "author": {
+    "name": "Cristofer Bonifacio"
+  },
+  "license": "MIT",
+  "keywords": [
+    "memoria",
+    "memory",
+    "claude-md",
+    "visualización",
+    "hooks",
+    "médico"
+  ],
+  "userConfig": {
+    "servir_contexto": {
+      "type": "boolean",
+      "title": "Contexto automático en cada pedido",
+      "description": "Si está prendido, antes de cada pedido de verdad Neuromapa busca el tema en tus notas y le pasa a Claude qué leer primero y los datos viejos, al editar un archivo de código le recuerda la nota que se suele leer con él, y le recuerda pasar a la memoria lo decidido cuando la charla se compacta o cuando cambió varios archivos sin anotar nada. Viene apagado. Aun apagado, una vez por chat le avisa a Claude los problemas nuevos de tus notas (rutas o enlaces rotos, memorias sin índice y posibles duplicados).",
+      "default": false
+    },
+    "carpeta_datos": {
+      "type": "directory",
+      "title": "Carpeta de datos",
+      "description": "Dónde guarda Neuromapa su config.json, el registro en vivo y la página. Vacío: la carpeta propia del plugin, que se borra al desinstalarlo."
+    }
+  },
+  "homepage": "https://github.com/lumiel777/neuromapa",
+  "repository": "https://github.com/lumiel777/neuromapa"
+}

@@ -1,0 +1,17 @@
+[
+ {
+  "de": "memoria-vivero:riego-sensores.md",
+  "a": "vivero-docs:GUIA-SENSORES.md",
+  "motivo": "la memoria resume la guía de cableado y calibración"
+ },
+ {
+  "de": "memoria-trailbot:trail-scoring.md",
+  "a": "trailbot-docs:SCORING.md",
+  "motivo": "same formula: the memory is the short version"
+ },
+ {
+  "de": "ideas:IDEAS.md",
+  "a": "memoria-vivero:idea-app-movil.md",
+  "motivo": "la app para Marta aparece en las dos"
+ }
+]

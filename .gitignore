@@ -1,0 +1,9 @@
+cerebro.html
+/config.json
+/hechos.json
+/sugerencias.json
+en-vivo/
+hechos-propuestos.json
+problemas.json
+__pycache__/
+*.tmp
