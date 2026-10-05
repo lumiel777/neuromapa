@@ -29,5 +29,8 @@
     }
   },
   "homepage": "https://github.com/lumiel777/neuromapa",
-  "repository": "https://github.com/lumiel777/neuromapa"
+  "repository": "https://github.com/lumiel777/neuromapa",
+  "documentationUrl": "https://github.com/lumiel777/neuromapa/wiki",
+  "supportUrl": "https://github.com/lumiel777/neuromapa/issues",
+  "privacyPolicyUrl": "https://github.com/lumiel777/neuromapa/wiki/Privacidad"
 }
