@@ -5,7 +5,8 @@
 **Claude Code's memory as a live 3D brain.** A doctor that warns you when your notes go stale, and a search that
 hands Claude what it already knows before it goes looking again.
 
-*[Versión en español](README.md)* · The interface and messages are in Spanish for now.
+*[Versión en español](README.md)* · The interface and messages are in Spanish for now. ·
+**[Wiki](https://github.com/lumiel777/neuromapa/wiki/English)** (step-by-step guide, in Spanish, with an English summary)
 
 ![Neuromapa with the demo's sample notes](docs/neuromapa.gif)
 
@@ -196,7 +197,9 @@ learn from that, and Claude gets neither the warnings nor the automatic context.
 
 ## Status
 
-Version 0.1, being tested. Tested on Windows and Linux; not yet on Mac. If you were invited to test it, follow
+Version 0.1, being tested. Tested on Windows and Linux; not yet on Mac. The [wiki](https://github.com/lumiel777/neuromapa/wiki)
+has a step-by-step guide, FAQ and troubleshooting (in Spanish, with an
+[English summary](https://github.com/lumiel777/neuromapa/wiki/English)). If you were invited to test it, follow
 [docs/probar.md](docs/probar.md) (in Spanish). If something breaks, open an issue; for security problems, see
 [SECURITY.md](SECURITY.md). To contribute, see [CONTRIBUTING.md](CONTRIBUTING.md) (in Spanish); changes per version
 are in [CHANGELOG.md](CHANGELOG.md) (in Spanish).

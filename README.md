@@ -5,7 +5,7 @@
 **La memoria de Claude Code como un cerebro 3D en vivo.** Un médico que avisa cuando tus notas quedaron viejas y un
 buscador que le da a Claude lo que ya sabe, antes de que lo vuelva a averiguar.
 
-*[English version](README.en.md)*
+*[English version](README.en.md)* · **[Wiki: la guía paso a paso](https://github.com/lumiel777/neuromapa/wiki)**
 
 ![Neuromapa con las notas de ejemplo de la demo](docs/neuromapa.gif)
 
@@ -196,8 +196,10 @@ y Claude no recibe los avisos ni el contexto automático. Para eso, instalá el 
 
 ## Estado
 
-Versión 0.1, en prueba. Probado en Windows y en Linux; en Mac todavía no. Si te invitaron a probarlo, seguí
-[docs/probar.md](docs/probar.md). Si algo falla, abrí un issue; si es de seguridad, mirá [SECURITY.md](SECURITY.md).
+Versión 0.1, en prueba. Probado en Windows y en Linux; en Mac todavía no. La [wiki](https://github.com/lumiel777/neuromapa/wiki)
+tiene la guía paso a paso, las preguntas frecuentes y los problemas más comunes con su solución. Si te invitaron a
+probarlo, seguí [docs/probar.md](docs/probar.md). Si algo falla, abrí un issue; si es de seguridad, mirá
+[SECURITY.md](SECURITY.md).
 Para colaborar, [CONTRIBUTING.md](CONTRIBUTING.md); los cambios de cada versión, en [CHANGELOG.md](CHANGELOG.md).
 
 ## Licencia
