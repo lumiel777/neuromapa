@@ -957,11 +957,11 @@ def revisar_configuracion(t):
                                           for s, lista in permisos.items() for p in lista),
            permisos)
 
-    def arrancar(*extra):
+    def arrancar(*extra, espera=60):
         arranque = subprocess.Popen([sys.executable, str(CARPETA / "servidor.py"), "--sin-navegador", "--puerto", "0", *extra],
                                     env=dict(os.environ, PYTHONIOENCODING="utf-8"), stdout=subprocess.PIPE,
                                     stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace")
-        reloj = threading.Timer(60, arranque.kill)
+        reloj = threading.Timer(espera, arranque.kill)
         reloj.start()
         visto = []
         try:
@@ -1010,7 +1010,9 @@ def revisar_configuracion(t):
                 break
             archivos.soltar_candado(prueba)
             time.sleep(0.05)
-        pegado = arrancar()
+        desde = time.monotonic()
+        pegado = arrancar(espera=150)
+        tardo = round(time.monotonic() - desde, 1)
         try:
             apurado.wait(15)
         except subprocess.TimeoutExpired:
@@ -1022,7 +1024,7 @@ def revisar_configuracion(t):
     probar("dos arranques casi a la vez dejan uno solo: el segundo espera a que el primero termine de arrancar y lo "
            "reemplaza (antes, con menos de ~4 s de diferencia, quedaban dos y uno no se veía)",
            reemplazado and any("lo apagué" in v for v in pegado) and any("Neuromapa en vivo" in v for v in pegado),
-           (reemplazado, pegado[-4:]))
+           (reemplazado, f"{tardo} s", pegado[-4:]))
     visto = arrancar()
     probar("servidor.py arranca entero como programa (el camino de abrir-cerebro.bat), hasta «en vivo», y nunca imprime "
            "la clave (antes la mostraba en la dirección; si lo arranca Claude queda en la charla)",
@@ -1973,14 +1975,20 @@ def abrir_en_chrome(chrome, pagina, extra=""):
     perfil = tempfile.mkdtemp(prefix="cerebro-humo-chrome-")
     try:
         r = subprocess.run([chrome, "--headless=new", "--disable-gpu", f"--user-data-dir={perfil}", "--no-first-run",
-                            "--no-default-browser-check", "--virtual-time-budget=6000", "--dump-dom",
-                            pagina.as_uri() + extra], capture_output=True, text=True, encoding="utf-8",
-                           errors="replace", timeout=180)
-        return r.stdout
+                            "--no-default-browser-check", "--use-mock-keychain", "--password-store=basic",
+                            "--virtual-time-budget=6000", "--dump-dom", pagina.as_uri() + extra], capture_output=True,
+                           text=True, encoding="utf-8", errors="replace", timeout=90)
+        if "<body" in r.stdout:
+            return r.stdout
+        motivo = f"Chrome salió con {r.returncode} sin la página: {r.stderr[-200:]}"
+    except subprocess.TimeoutExpired as error:
+        motivo = f"Chrome no terminó en {error.timeout:g} s"
     except (OSError, subprocess.SubprocessError) as error:
-        return f"<html data-errores=\"no pude abrir Chrome: {error}\"></html>"
+        motivo = f"no pude abrir Chrome: {str(error)[:200]}"
     finally:
         shutil.rmtree(perfil, ignore_errors=True)
+    limpio = re.sub(r'["<>]', "'", motivo)
+    return f"<html data-errores=\"{limpio}\"></html>"
 
 
 def revisar_pagina_abierta(t, datos, html):
