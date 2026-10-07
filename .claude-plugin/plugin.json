@@ -1,7 +1,7 @@
 {
   "name": "neuromapa",
   "displayName": "Neuromapa",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "La memoria de Claude Code como un cerebro 3D en vivo, con un médico que avisa los datos viejos y un buscador que le da a Claude lo que ya sabe.",
   "author": {
     "name": "Cristofer Bonifacio"

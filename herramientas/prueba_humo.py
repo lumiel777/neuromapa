@@ -1349,6 +1349,11 @@ def revisar_resuelto(t):
     probar("una ancla con una carpeta con espacios (Web Server\\Program.cs) encuentra su archivo entre varios del mismo "
            "nombre (antes tomaba «Server\\» y la salteaba)",
            resueltas == [["D:\\p\\Web Server\\Program.cs"], ["D:\\p\\Api Server\\Program.cs"]], (anclas, resueltas))
+    codigo.indices["MAC"] = {"cartera.py": ["/u/p/app/web/cartera.py", "/u/p/app/models/cartera.py"]}
+    con_barras = codigo.resolver("MAC", "app/models", "cartera", "py", "", "/n.md")
+    probar("en Mac y Linux, una ancla con carpeta (app/models/cartera.py) encuentra su archivo entre varios del mismo "
+           "nombre (antes comparaba la carpeta con barras invertidas contra rutas con «/» y no hallaba ninguno; issue #1)",
+           con_barras == ["/u/p/app/models/cartera.py"], con_barras)
     codigo.indices["WEB"] = {"pagina.ts": ["D:\\w\\src\\pagina.ts"]}
     del_servidor = medico.archivos_del_ancla(codigo, "WEB", anclas[0], "", "nota.md", {"WEB": "X"})
     probar("si una nota de un proyecto cita un archivo de otro al que remite (la web al servidor), lo busca también ahí",

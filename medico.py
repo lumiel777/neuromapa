@@ -1236,7 +1236,7 @@ class Codigo:
             mejor = []
             for variante in variantes:
                 sufijo = "\\" + variante + "\\" + archivo
-                filtradas = [r for r in lista if r.lower().endswith(sufijo)]
+                filtradas = [r for r in lista if nucleo.normalizar(r).endswith(sufijo)]
                 if len(filtradas) == 1:
                     mejor = filtradas
                     break

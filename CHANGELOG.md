@@ -3,6 +3,13 @@
 Las versiones siguen el número de `.claude-plugin/plugin.json` (`claude plugin list` lo muestra, y Claude lo ve con `neuromapa --version`). Cada versión que
 sale sube ese número; si no, la actualización puede no traer nada (ver [CONTRIBUTING.md](CONTRIBUTING.md)).
 
+## 0.1.3 — en prueba
+
+- En Mac y Linux, el médico no encontraba el archivo de una cita con carpeta (`app/models/cosa.py:564`) cuando ese
+  nombre de archivo existe en más de una carpeta: la daba «sin un archivo de código con ese nombre», y dar la carpeta
+  dejaba peor que no darla. Ahora la carpeta elige el archivo justo, como en Windows. Lo reportó jroberto1386 en el
+  [issue #1](https://github.com/lumiel777/neuromapa/issues/1), con la causa y cómo reproducirlo.
+
 ## 0.1.2 — en prueba
 
 - En Windows con Python 3.10 a 3.12, lo aprendido a veces se volvía a repasar enseguida y el índice de búsqueda se
