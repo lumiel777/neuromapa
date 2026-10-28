@@ -42,7 +42,7 @@ def detalle(error):
 
 
 def recortar(texto, largo):
-    texto = " ".join(str(texto).split())
+    texto = sin_control(" ".join(str(texto).split()))
     if len(texto) <= largo:
         return texto
     texto = texto[:largo - 1].rstrip() + "…"
@@ -54,7 +54,7 @@ def entre_comillas(texto):
 
 
 def citar(texto, largo=None):
-    limpio = " ".join(str(texto).split()).replace("«", "‹").replace("»", "›")
+    limpio = sin_control(" ".join(str(texto).split())).replace("«", "‹").replace("»", "›")
     if largo and len(limpio) > largo:
         limpio = limpio[:largo - 1].rstrip() + "…"
     return "«" + limpio + "»"

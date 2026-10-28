@@ -18,7 +18,7 @@ REFRESCO = 6 * 3600
 MOSTRAR = 4
 LARGO_CITA = 120
 ESPERA_CANDADO = 0.5
-REGLAS_YA_EN_SALUD = ("sinIndice", "indiceRoto", "enlaceRoto")
+REGLAS_YA_EN_SALUD = ("sinIndice", "indiceRoto", "enlaceRoto", "ambigua")
 ARREGLADOS_DIAS = 30
 ARREGLADOS_TOPE = 200
 

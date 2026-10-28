@@ -194,3 +194,26 @@ def leer_objeto_json(ruta):
     except (OSError, ValueError):
         return {}
     return datos if isinstance(datos, dict) else {}
+
+
+def json_roto(ruta):
+    try:
+        with open(ruta, encoding="utf-8-sig") as archivo:
+            json.load(archivo)
+    except ValueError as error:
+        return str(error)
+    except OSError:
+        return None
+    return None
+
+
+def apartar_roto(ruta, ahora=None):
+    ruta = Path(ruta)
+    if json_roto(ruta) is None:
+        return None
+    destino = ruta.with_name(f"{ruta.stem}.roto-{time.strftime('%Y%m%d-%H%M%S', time.localtime(ahora))}{ruta.suffix}")
+    try:
+        os.replace(ruta, destino)
+    except OSError:
+        return None
+    return destino

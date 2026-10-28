@@ -5,12 +5,49 @@ sale sube ese número; si no, la actualización puede no traer nada (ver [CONTRI
 
 ## 0.1.7 — en prueba
 
-Para que el clon no quede a medias en Windows:
+- El clon ya no queda a medias en Windows. Tres notas de la demo tenían rutas de 70 a 74 letras y, clonadas dentro de
+  una carpeta honda, Windows no las creaba («Filename too long») y git dejaba el clon incompleto. Ahora se llaman
+  `avisos-repetidos-mp.md`, `arreglo-webhook-doble.md` y `fix-double-reply.md`, con los enlaces y el índice de la demo
+  al día, y las pruebas de GitHub revisan que ninguna ruta pase de 68 letras (`herramientas/rutas_cortas.py`). Lo
+  encontró y lo arregló Byron (@Bddgc) en el PR #4.
+- `--salud` muestra las menciones ambiguas: una nota que nombra `progreso.md` o `LEEME.md` sin carpeta cuando hay
+  varias con ese nombre. Antes solo salían en el mapa y en el aviso a los chats, así que la consola daba menos avisos
+  que el mapa (en una memoria real, 8 contra 22) y Claude, que lee `--salud`, no las veía. Ahora cada una sale con su
+  renglón, las notas candidatas y cómo arreglarla (poner la carpeta, o «un progreso.md» si es uno cualquiera). En el
+  mapa y en el aviso a los chats no se cuentan dos veces.
+- Las anclas `archivo:línea` que el médico sigue con git ya no proponen números que caen en otro código. En una memoria
+  real, de 12 propuestas así solo 5 estaban bien. Pasaba por tres cosas:
+  - En las memorias, que no están en git, la fecha de la cita era la del archivo, que cambia con cualquier edición
+    posterior. Ahora es la de la primera versión del historial de la memoria que trae esa cita (también si después
+    la nota se partió en «parte N» o historias).
+  - En un repo, si el renglón se retocó después, la fecha era la del retoque. Ahora, si la cita ya estaba antes de ese
+    commit, no da número.
+  - Si la nota se escribió con lo leído antes de un commit hecho un rato antes, el número contaba solo lo que se movió
+    después. Ahora tiene que dar lo mismo desde cada estado del archivo en las 6 h de alrededor de la cita.
 
-- Tres notas de la demo tenían rutas de 70 a 74 letras y, clonadas dentro de una carpeta honda, Windows no las
-  creaba («Filename too long») y git dejaba el clon incompleto. Ahora se llaman `avisos-repetidos-mp.md`,
-  `arreglo-webhook-doble.md` y `fix-double-reply.md`, con los enlaces y el índice de la demo al día.
-- Las pruebas de GitHub revisan que ninguna ruta pase de 68 letras (`herramientas/rutas_cortas.py`).
+  Cuando esas cuentas no coinciden, o no se sabe de cuándo es la cita, el ancla sale igual si todas dicen que se
+  corrió, pero sin número («hoy estaría en la 1498 o la 1530») y sin proponerse como arreglo. También sigue un
+  renglón editado en el mismo lugar y las dos puntas de un rango. Con la misma memoria: 7 de esas 12 bien, 2 a 4
+  líneas (el renglón ya estaba corrido al escribirse), 1 sin número con la buena entre las opciones y 2 sin marcar;
+  ninguna en otro código. Más anclas viejas de los documentos de proyecto salen ahora (antes se callaban cuando dos
+  cuentas no coincidían).
+- Lo que la pista, `--sobre` y el médico citan de una nota ya no lleva caracteres de control. Un título con un código
+  de color de la consola o un pitido le llegaba así a Claude; ahora cada uno queda como «?». El «» que una nota mete
+  para cerrar la cita antes de tiempo ya se cambiaba por ‹›; una prueba nueva lo comprueba de punta a punta con una
+  nota escrita para meterle órdenes a la pista.
+- El índice de búsqueda ya no pierde notas por un mal momento. Si al rearmarlo una carpeta no responde (un junction
+  caído, un disco de red) o una nota no se puede leer, el índice nuevo sale con menos notas; antes se guardaba igual y
+  la pista se quedaba sin ellas hasta el próximo rearmado. Ahora, si faltan notas cuyo archivo sigue ahí o cuya carpeta
+  no se puede leer, contesta con lo que pudo leer pero no lo guarda, y el próximo pedido vuelve a probar. Una nota
+  borrada de verdad sale enseguida, y si la carpeta no vuelve en media hora, se acepta el índice más chico.
+- Un archivo de datos roto ya no se pisa en silencio. Con `descartados.json` roto, `--descartar-aviso` y
+  `--recuperar-aviso` lo dicen y no escriben (antes lo reescribían con lo nuevo y se perdían los avisos descartados).
+  Con `aprendido.json` roto, se aparta con la fecha en el nombre antes de armar uno nuevo (antes se pisaba, y volvía lo
+  que se había mandado olvidar). En los dos casos `--salud` avisa qué pasó y dónde quedó.
+- El conector MCP (`sobre`, `buscar`, `leer_nota`) sigue andando si Neuromapa se actualiza mientras una charla está
+  abierta. Antes juntaba módulos viejos, ya cargados, con nuevos, y fallaba con «cannot import name … from archivos»
+  hasta reiniciar la charla. Ahora, si el código cambió desde que arrancó, contesta cada pedido en un proceso aparte
+  con todo el código nuevo.
 
 ## 0.1.6
 

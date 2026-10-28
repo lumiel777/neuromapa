@@ -172,6 +172,7 @@ PREFIJO_RESUELTO = "Puede que ya esté resuelto"
 INDICE_GUARDADO = "indice-busqueda.json"
 INDICE_VIEJO = "indice-busqueda.pickle"
 VIDA_INDICE = 15 * 60
+AGUANTE_ENCOGIDO = 30 * 60
 ESPERA_INDICE = 6.0
 REARMANDO = "rearmando-indice.txt"
 ESPERA_REARMADO = 120
@@ -1462,6 +1463,27 @@ def esperar_indice(ruta, llave, hasta=None):
     return None
 
 
+def base_del_indice(llave):
+    import configuracion
+    return [llave[0], llave[1], list(nucleo.firma(configuracion.archivo()))] if llave else None
+
+
+def notas_sin_leer(ruta, base, indice, ahora=None):
+    try:
+        with open(ruta, encoding="utf-8") as archivo:
+            cabeza = json.loads(archivo.readline())
+            if not isinstance(cabeza, dict) or cabeza.get("base") != base or cabeza.get("notas", 0) <= len(indice.notas):
+                return []
+            if (time.time() if ahora is None else ahora) - cabeza.get("hecho", 0) >= AGUANTE_ENCOGIDO:
+                return []
+            viejas = [n["ruta"] for n in json.loads(archivo.read())["notas"]]
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+        return []
+    hoy = {nucleo.normalizar(n["ruta"]) for n in indice.notas}
+    return [r for r in viejas if nucleo.normalizar(r) not in hoy
+            and (os.path.exists(r) or not os.path.isdir(os.path.dirname(r)))]
+
+
 def desde_disco(guardado=True, esperar=True, hasta=None):
     ruta = ruta_del_indice()
     llave = json.loads(json.dumps(llave_del_indice())) if guardado else None
@@ -1474,8 +1496,10 @@ def desde_disco(guardado=True, esperar=True, hasta=None):
         return indice if indice is not None else esperar_indice(ruta, llave, hasta)
     cerebro = nucleo.desde_disco()
     indice = Indice(cerebro, avisos_del_medico(cerebro))
-    if guardado:
-        cabeza = json.dumps({"llave": llave, "hecho": time.time()}, ensure_ascii=False)
+    base = base_del_indice(llave)
+    if guardado and not notas_sin_leer(ruta, base, indice):
+        cabeza = json.dumps({"llave": llave, "hecho": time.time(), "notas": len(indice.notas), "base": base},
+                            ensure_ascii=False)
         cuerpo = json.dumps(indice.a_datos(), ensure_ascii=False, separators=(",", ":"))
         try:
             permisos.crear(ruta.parent)

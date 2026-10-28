@@ -20,6 +20,55 @@ def ruta_sh(ruta):
     return ruta
 
 
+RE_OPCION = re.compile(r"(?<![\w-])--[a-z][\w-]*")
+RE_DESPUES_DEL_COMANDO = re.compile(r"(?:(?<![\w/:-])neuromapa(?= )|cerebro\.py|\{comando\}|\{cmd\}|comando\(\)\})"
+                                    r"([^`\"'\n]*)")
+RE_SKILL_CON_OPCIONES = re.compile(r"/neuromapa:(\w+)([^`\n]*)")
+RE_HOOK_CON_OPCIONES = re.compile(r"(hook_\w+\.py)([^`\"'\n]*)")
+RE_OPCION_SUELTA = re.compile(r"`(--[a-z][\w-]*)[^`]*`")
+RE_OTRO_PROGRAMA = re.compile(r"\b(?:claude|git|gh|pip|uv|node|npx|python -m)\s+(?:-p\b|plugin|--|\w)", re.I)
+OPCIONES_DE_CLAUDE_CODE = {"--keep-data"}
+
+
+def revisar_opciones_nombradas(t):
+    seccion("Las opciones que nombran las skills, la documentación y los avisos existen")
+    consola = set(RE_OPCION.findall(correr([str(CARPETA / "cerebro.py"), "--help"]).stdout))
+    abrir = set(servidor.OPCIONES)
+    hooks = {o for archivo in CARPETA.glob("hook_*.py")
+             for o in re.findall(r'"(--[a-z][\w-]*)" in sys\.argv', archivo.read_text(encoding="utf-8"))}
+    publico = CARPETA / "publico" if (CARPETA / "publico").is_dir() else CARPETA
+    documentos = sorted(list((CARPETA / "skills").glob("*/SKILL.md"))
+                        + [p for p in publico.glob("*.md") if p.name != "CHANGELOG.md"]
+                        + list((publico / "docs").glob("*.md")) + list((CARPETA / "wiki").glob("*.md")))
+    nombradas, faltan = set(), {}
+
+    def anotar(opcion, validas, lugar):
+        nombradas.add(opcion)
+        if opcion not in validas | OPCIONES_DE_CLAUDE_CODE:
+            faltan.setdefault(opcion, lugar)
+
+    for archivo in documentos + sorted(CARPETA.glob("*.py")):
+        for n, renglon in enumerate(archivo.read_text(encoding="utf-8").split("\n"), 1):
+            lugar = f"{archivo.name}:{n}"
+            for m in RE_SKILL_CON_OPCIONES.finditer(renglon):
+                for opcion in RE_OPCION.findall(m.group(2)):
+                    anotar(opcion, abrir if m.group(1) == "abrir" else consola, lugar)
+            for m in RE_HOOK_CON_OPCIONES.finditer(renglon):
+                for opcion in RE_OPCION.findall(m.group(2)):
+                    anotar(opcion, hooks, lugar)
+            for m in RE_DESPUES_DEL_COMANDO.finditer(renglon):
+                for opcion in RE_OPCION.findall(m.group(1)):
+                    anotar(opcion, abrir if m.group(1).lstrip().startswith("abrir") else consola, lugar)
+            if archivo.suffix == ".md" and not RE_OTRO_PROGRAMA.search(renglon):
+                for m in RE_OPCION_SUELTA.finditer(renglon):
+                    anotar(m.group(1), consola | abrir | hooks, lugar)
+    probar("cada --opción que las skills, el README, las guías, la wiki y los avisos le dicen a Claude que corra existe en "
+           "--help de la consola, en «neuromapa abrir» o en el hook que la nombra (si se renombra una, Claude recibía una "
+           "orden que falla); y la búsqueda encontró de verdad qué revisar",
+           not faltan and len(consola) >= 30 and len(documentos) >= 8 and len(nombradas) >= 30,
+           (faltan, len(consola), len(documentos), len(nombradas)))
+
+
 def revisar_dos_consolas(t, sh, base, comandos):
     raiz = t / "raiz con espacio"
     (raiz / "scripts").mkdir(parents=True)

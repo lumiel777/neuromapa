@@ -28,6 +28,41 @@ def revisar_acentos(t):
                         ("Otra.md", "enlace", "Café.md")] and not rotos, (destinos, rotos, salida[-300:]))
 
 
+def revisar_invariancia(t):
+    seccion("La misma memoria en otra carpeta o en CRLF")
+    mundos = {"corta": t / "inv-a", "larga": t / "otra carpeta con espacios y eñes áé" / "inv-b", "crlf": t / "inv-c"}
+    for nombre, mundo in mundos.items():
+        mundo.mkdir(parents=True)
+        armar_carpeta(mundo)
+        escribir_config(mundo)
+        login = mundo / "memoria" / "arreglo-login.md"
+        login.write_text(login.read_text(encoding="utf-8").replace(str(mundo / "proyecto" / "docs" / "plan-viejo.md"),
+                                                                   "proyecto/docs/plan-viejo.md"),
+                         encoding="utf-8", newline="\n")
+        if nombre == "crlf":
+            for archivo in mundo.rglob("*"):
+                if archivo.is_file() and archivo.suffix in (".md", ".cs", ".js", ".py"):
+                    archivo.write_bytes(archivo.read_bytes().replace(b"\r\n", b"\n").replace(b"\n", b"\r\n"))
+
+    def normal(texto, mundo):
+        for forma in (str(mundo), str(mundo).replace("\\", "/"), str(mundo).replace("\\", "\\\\")):
+            texto = texto.replace(forma, "<RAIZ>")
+        return re.sub(r"\d+(,\d+)? m?s\b", "N s", texto.replace("\\", "/"))
+
+    ordenes = (("--salud", "--todo"), ("--sobre", "clave del login con espacios"), ("--buscar", "validación de la clave"),
+               ("--pendientes",))
+    salidas = {(nombre, orden): cerebro_en(mundo, *orden) for nombre, mundo in mundos.items() for orden in ordenes}
+    distintas = [(nombre, orden[0]) for orden in ordenes for nombre in ("larga", "crlf")
+                 if (salidas[(nombre, orden)][0], normal(salidas[(nombre, orden)][1], mundos[nombre]))
+                 != (salidas[("corta", orden)][0], normal(salidas[("corta", orden)][1], mundos["corta"]))]
+    contestaron = all(c == 0 for c, _ in salidas.values()) and "notas revisadas" in salidas[("corta", ordenes[0])][1] \
+        and "arreglo-login.md" in salidas[("corta", ordenes[1])][1]
+    probar("la misma memoria da el mismo médico, la misma búsqueda, el mismo «sobre» y los mismos pendientes en una "
+           "carpeta con espacios y eñes en la ruta, y con todos sus archivos en CRLF (la clase del error de Mac y Linux, "
+           "que dependía del largo de la ruta)", contestaron and not distintas,
+           (distintas, [s[1][-200:] for s in salidas.values() if s[0]][:2]))
+
+
 def revisar_codificaciones(t):
     seccion("Notas guardadas en UTF-16 o con un byte roto")
     mundo = t / "codificaciones"

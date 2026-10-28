@@ -16,7 +16,7 @@ import cerebro as nucleo
 import configuracion
 import permisos
 import procesos
-from archivos import escribir_atomico, leer_objeto_json
+from archivos import escribir_atomico, json_roto, leer_objeto_json
 from textos import cantidad, citar, decimal, miles, recortar
 
 TONOS = ("peligro", "aviso", "revisar", "info")
@@ -169,9 +169,17 @@ VIDA_AUSENTE = 600.0
 CANDADO_COMMITS = threading.Lock()
 CACHE_COMMITS = nucleo.DATOS / "en-vivo" / "commits.json"
 CACHE_ANCLAS = nucleo.DATOS / "en-vivo" / "anclas-git.json"
+CACHE_FECHAS_ANCLAS = nucleo.DATOS / "en-vivo" / "anclas-fechas.json"
+POR_QUE_SIN_FECHA = {
+    "retocado": "el renglón se retocó en un commit posterior y la cita ya estaba antes",
+    "historial": "es más vieja que el historial de la memoria",
+    "archivo": "la nota no está en git ni en el historial de la memoria",
+}
+RE_FAMILIA_DE_NOTA = re.compile(r"(?:[-_.](?:parte|part|historia|history|archivo|archive|archived)[-_.]?\d+)+$", re.I)
 MOVIDA_MINIMA = VENTANA_ANCLA
 TOLERANCIA_MOVIDA = 3
-VENTANA_TRABAJO = 24 * 3600
+VENTANA_TRABAJO = 6 * 3600
+CAMBIO_EN_EL_LUGAR = 3
 VERSION_CACHE_COMMITS = 1
 CACHE_COMMITS_LEIDA = []
 
@@ -876,6 +884,28 @@ def regla_indice(cerebro):
     return salida
 
 
+def regla_ambiguas(cerebro):
+    salida = []
+    for x in getattr(cerebro, "ambiguos", None) or ():
+        nota = cerebro.por_id.get(x.get("de"))
+        if nota is None:
+            continue
+        mencion = str(x.get("mencion") or "")
+        posicion = nota["_cuerpo"].find(mencion) if mencion else -1
+        rutas = [cerebro.por_id[c]["ruta"] for c in x.get("candidatos") or () if c in cerebro.por_id]
+        if len(rutas) == 1:
+            texto = (f"Menciona {citar(mencion, LARGO_CITA)} sin ruta; la única nota con ese nombre está en otra carpeta "
+                     f"({rutas[0]}), así que no la conecté.")
+        else:
+            cuales = ", ".join(rutas[:3]) + (f" y {len(rutas) - 3} más" if len(rutas) > 3 else "")
+            texto = (f"Menciona {citar(mencion, LARGO_CITA)} sin ruta, y hay {len(rutas)} notas con ese nombre "
+                     f"({cuales}).")
+        salida.append(hallazgo("ambigua", nota["id"], linea_en(nota, posicion) if posicion >= 0 else None, "aviso",
+                               texto, "Poner la carpeta en la mención o en el mismo renglón; si es un archivo cualquiera "
+                                      "con ese nombre, decirlo así («un progreso.md»)."))
+    return salida
+
+
 def es_floja(descripcion, nodo):
     d = sin_tildes(nucleo.limpiar_md(descripcion)).strip(" .")
     if len(d) < DESCRIPCION_MINIMA:
@@ -900,6 +930,25 @@ def listadas_como_archivo(cerebro):
                 identificador = cerebro.por_ruta.get(nucleo.normalizar(destino))
                 if identificador:
                     salida.setdefault(identificador, Path(indice["ruta"]).name)
+    return salida
+
+
+def regla_datos_rotos(cerebro):
+    indice = indice_principal(cerebro)
+    salida = []
+    error = json_roto(DESCARTADOS)
+    if error:
+        salida.append(hallazgo("datosRotos", indice, None, "aviso",
+                               f"{DESCARTADOS} no es un JSON válido ({error}): los avisos que descartaste vuelven a salir, "
+                               "y --descartar-aviso no lo va a pisar.", "Arreglarlo a mano, o borrarlo si no lo querés."))
+    for carpeta in (nucleo.DATOS, nucleo.DATOS / "en-vivo"):
+        for apartado in sorted(Path(carpeta).glob("*.roto-*.json")):
+            original = apartado.name.split(".roto-", 1)[0] + ".json"
+            salida.append(hallazgo("datosRotos", indice, None, "aviso",
+                                   f"{original} estaba roto (no era un JSON válido): para no pisarlo lo guardé como "
+                                   f"{apartado} y se armó uno nuevo, sin lo que tenía.",
+                                   "Si tenía algo que querés conservar (por ejemplo, lo que mandaste olvidar), pasarlo a "
+                                   f"mano a {original}; si no, borrar el apartado."))
     return salida
 
 
@@ -1223,27 +1272,65 @@ def problemas_de(nodo):
     return salida
 
 
+def culpas_de_renglones(pedidos, repos):
+    por_repo = {(repo_de(ruta, repos), ruta): lineas for ruta, lineas in pedidos.items() if repo_de(ruta, repos)}
+    claves = sorted(por_repo)
+    culpas = en_paralelo([lambda c=c: culpa_de_lineas(c[0], c[1], por_repo[c]) for c in claves], espera=20)
+    salida = {}
+    for (repo, ruta), culpa in zip(claves, culpas):
+        for n, (sha, tiempo) in (culpa or {}).items():
+            if sha != SHA_VACIO and tiempo:
+                salida[(ruta, n)] = (repo, sha, tiempo)
+    return salida
+
+
 def fechas_de_renglones(pedidos, repos):
     fechas = {}
-    por_repo = {}
     for ruta, lineas in pedidos.items():
-        repo = repo_de(ruta, repos)
-        if repo:
-            por_repo[(repo, ruta)] = lineas
-        elif proyectos_de_memoria(ruta):
+        if not repo_de(ruta, repos) and proyectos_de_memoria(ruta):
             try:
                 tiempo = os.path.getmtime(ruta)
             except OSError:
                 continue
             for n in lineas:
                 fechas[(ruta, n)] = tiempo
-    claves = sorted(por_repo)
-    culpas = en_paralelo([lambda c=c: culpa_de_lineas(c[0], c[1], por_repo[c]) for c in claves], espera=20)
-    for (repo, ruta), culpa in zip(claves, culpas):
-        for n, (sha, tiempo) in (culpa or {}).items():
-            if sha != SHA_VACIO and tiempo:
-                fechas[(ruta, n)] = tiempo
+    fechas.update({clave: tiempo for clave, (_, _, tiempo) in culpas_de_renglones(pedidos, repos).items()})
     return fechas
+
+
+def citas_de_antes(pedidos, guardado, espera=20):
+    salida = {}
+    for repo in sorted({r for r, _, _ in pedidos}):
+        faltan = [k for k in sorted(pedidos) if k[0] == repo and any(f"{repo}|{k[1]}|{k[2]}|{c}" not in guardado
+                                                                        for c in pedidos[k])]
+        textos = {}
+        if faltan:
+            try:
+                proceso = procesos.correr(["git", "-C", repo, "cat-file", "--batch"], timeout=espera,
+                                          input="".join(f"{sha}^:{rel}\n" for _, sha, rel in faltan).encode("utf-8"),
+                                          stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+                crudo = proceso.stdout if proceso.returncode == 0 else b""
+            except (OSError, subprocess.SubprocessError):
+                crudo = b""
+            posicion = 0
+            for clave in faltan if crudo else ():
+                fin = crudo.find(b"\n", posicion)
+                partes = crudo[posicion:fin].split()
+                posicion = fin + 1
+                if len(partes) == 3 and partes[2].isdigit():
+                    largo = int(partes[2])
+                    textos[clave] = crudo[posicion:posicion + largo].decode("utf-8", "replace")
+                    posicion += largo + 1
+                else:
+                    textos[clave] = ""
+        for clave in (k for k in pedidos if k[0] == repo):
+            for cita in pedidos[clave]:
+                llave = f"{repo}|{clave[1]}|{clave[2]}|{cita}"
+                if llave not in guardado and clave in textos:
+                    guardado[llave] = cita in textos[clave]
+                if llave in guardado:
+                    salida[(clave, cita)] = guardado[llave]
+    return salida
 
 
 def regla_resuelto(cerebro, repos=None):
@@ -1864,7 +1951,7 @@ def mapear_linea(linea, hunks):
         if linea < viejo:
             break
         if b and linea <= a + b - 1:
-            return None
+            return c + linea - a if b == d <= CAMBIO_EN_EL_LUGAR else None
         desplazamiento = (nuevo + d) - (viejo + b)
     return linea + desplazamiento
 
@@ -1905,7 +1992,125 @@ def commits_por_archivo(repo, relativas, espera=30, corto=False):
     return por_archivo
 
 
-def anclas_movidas(candidatas, repos=None, cache=None):
+def citas_del_renglon(renglon):
+    normales = []
+    for m in RE_ANCLA.finditer(renglon):
+        k = m.start()
+        while k > 0 and renglon[k - 1] in CARACTERES_RUTA:
+            k -= 1
+        token = renglon[k:m.start()]
+        nombre = token[max(token.rfind("\\"), token.rfind("/")) + 1:]
+        if RE_NOMBRE_CS.match(nombre):
+            normales.append((m.end(), renglon[k:m.end()], f"{nombre}.{m.group(1).lower()}"))
+    sueltas = []
+    for s in RE_ANCLA_SUELTA.finditer(renglon):
+        previas = [x for x in normales if x[0] <= s.start()]
+        if previas:
+            sueltas.append(max(previas)[2] + s.group(0).strip("`"))
+    return [cita for _, cita, _ in normales] + sueltas
+
+
+def familia_de_nota(ruta):
+    nombre = Path(ruta).name
+    return RE_FAMILIA_DE_NOTA.sub("", nombre[:-3] if nombre.lower().endswith(".md") else nombre).lower()
+
+
+def primeras_citas(carpeta, cache=None):
+    import historial
+    ruta_cache = CACHE_FECHAS_ANCLAS if cache is None else Path(cache)
+    guardado = leer_objeto_json(ruta_cache)
+    clave = historial.repo_de(carpeta).name
+    previo = guardado.get(clave) if isinstance(guardado.get(clave), dict) else {}
+    cabeza = (historial.git(carpeta, "rev-parse", "HEAD") or "").strip()
+    if not cabeza:
+        return None
+    primeras = previo.get("primeras") if isinstance(previo.get("primeras"), dict) else {}
+    raiz = previo.get("raiz") if isinstance(previo.get("raiz"), int) else None
+    if raiz is not None and previo.get("hasta") == cabeza:
+        return primeras, raiz
+    pedido = ["log", "--reverse", "--format=%x01%ct", "-p", "-U0", "--no-renames", "--no-color"]
+    salida = historial.git(carpeta, *pedido, f'{previo["hasta"]}..{cabeza}') if raiz is not None and previo.get("hasta") else None
+    if salida is None:
+        primeras, raiz = {}, None
+        salida = historial.git(carpeta, *pedido, cabeza)
+    if salida is None:
+        return None
+    tiempo, familia, anterior = None, None, ""
+    for renglon in salida.split("\n"):
+        if renglon.startswith("\x01"):
+            tiempo = int(renglon[1:]) if renglon[1:].isdecimal() else None
+            raiz = tiempo if raiz is None else raiz
+        elif renglon.startswith("+++ ") and anterior.startswith("--- "):
+            familia = familia_de_nota(renglon[6:].rstrip("\t")) if renglon.startswith("+++ b/") else None
+        elif renglon.startswith("+") and familia and tiempo:
+            for cita in citas_del_renglon(renglon[1:]):
+                primeras.setdefault(f"{familia}|{cita}", tiempo)
+        anterior = renglon
+    if raiz is None:
+        return None
+    guardado[clave] = {"hasta": cabeza, "raiz": raiz, "primeras": primeras}
+    try:
+        permisos.crear(ruta_cache.parent)
+        escribir_atomico(ruta_cache, json.dumps(guardado, separators=(",", ":")))
+    except OSError:
+        pass
+    return primeras, raiz
+
+
+def fechas_de_anclas(candidatas, repos, cache=None):
+    import historial
+    carpetas = [os.path.normcase(os.path.realpath(c)) for c in historial.carpetas()] if historial.hay_git() else []
+    indices, fechas, en_repo = {}, {}, {}
+    for c in candidatas:
+        ruta = c["_nota_ruta"]
+        if repo_de(ruta, repos):
+            en_repo.setdefault(ruta, []).append(c["linea"])
+            continue
+        real = os.path.normcase(os.path.realpath(ruta))
+        carpeta = next((x for x in carpetas if real.startswith(x + os.sep)), None)
+        if carpeta is not None:
+            if carpeta not in indices:
+                indices[carpeta] = primeras_citas(carpeta, cache)
+            primeras, raiz = indices[carpeta] or ({}, None)
+            cuando = primeras.get(f'{familia_de_nota(ruta)}|{c.get("cita")}')
+            if cuando:
+                fechas[id(c)] = (cuando, cuando > raiz, "historial")
+                continue
+        if carpeta is not None or proyectos_de_memoria(ruta):
+            try:
+                fechas[id(c)] = (os.path.getmtime(ruta), False, "archivo")
+            except OSError:
+                pass
+    culpas = culpas_de_renglones(en_repo, repos)
+    pedidos = {}
+    for c in candidatas:
+        culpa = culpas.get((c["_nota_ruta"], c["linea"]))
+        if culpa and c.get("cita"):
+            repo, sha, _ = culpa
+            relativa = os.path.relpath(c["_nota_ruta"], repo).replace("\\", "/")
+            pedidos.setdefault((repo, sha, relativa), set()).add(c.get("cita"))
+    ruta_cache = CACHE_FECHAS_ANCLAS if cache is None else Path(cache)
+    guardado = leer_objeto_json(ruta_cache)
+    vistas = guardado.get("previas") if isinstance(guardado.get("previas"), dict) else {}
+    previas = citas_de_antes(pedidos, vistas)
+    for c in candidatas:
+        culpa = culpas.get((c["_nota_ruta"], c["linea"]))
+        if culpa:
+            repo, sha, cuando = culpa
+            relativa = os.path.relpath(c["_nota_ruta"], repo).replace("\\", "/")
+            fechas[id(c)] = (cuando, not previas.get(((repo, sha, relativa), c.get("cita")), False), "retocado")
+    if pedidos:
+        guardado = leer_objeto_json(ruta_cache)
+        guardado["previas"] = {f"{k[0]}|{k[1]}|{k[2]}|{cita}": v for (k, cita), v in previas.items()}
+        try:
+            permisos.crear(ruta_cache.parent)
+            escribir_atomico(ruta_cache, json.dumps(guardado, separators=(",", ":")))
+        except OSError:
+            pass
+    return fechas
+
+
+def anclas_movidas(candidatas, repos=None, cache=None, cache_fechas=None):
     repos = repos_conocidos() if repos is None else list(repos)
     if not candidatas or not repos:
         return []
@@ -1914,30 +2119,35 @@ def anclas_movidas(candidatas, repos=None, cache=None):
     cabezas = {r: (correr_git(r, ["rev-parse", "HEAD"]) or "").strip() for r in repos}
     commits = guardado.get("commits") if isinstance(guardado.get("commits"), dict) else {}
     viejos = guardado.get("hunks") if guardado.get("cabezas") == cabezas and isinstance(guardado.get("hunks"), dict) else {}
-    pedidos = {}
-    for c in candidatas:
-        pedidos.setdefault(c["_nota_ruta"], []).append(c["linea"])
-    fechas = fechas_de_renglones(pedidos, repos)
+    fechas = fechas_de_anclas(candidatas, repos, cache_fechas)
     usados_commits, grupos, asignadas, por_repo = {}, {}, [], {}
+
+    def commit_al(repo, momento):
+        llave = f"{repo}|{int(momento // 3600)}"
+        if llave not in commits:
+            commits[llave] = (correr_git(repo, ["rev-list", "-1", f"--before={int(momento)}", "HEAD"]) or "").strip()
+        usados_commits[llave] = commits[llave]
+        return commits[llave]
+
     for c in candidatas:
-        cuando = fechas.get((c["_nota_ruta"], c["linea"]))
+        cuando, exacta, motivo = fechas.get(id(c), (None, False, ""))
         repo = repo_de(c["archivo"], repos)
         if not cuando or not repo or not cabezas.get(repo):
             continue
-        llave = f"{repo}|{int(cuando // 3600)}"
-        if llave not in commits:
-            commits[llave] = (correr_git(repo, ["rev-list", "-1", f"--before={int(cuando)}", "HEAD"]) or "").strip()
-        usados_commits[llave] = commits[llave]
-        if commits[llave] and commits[llave] != cabezas[repo]:
+        al_momento = commit_al(repo, cuando)
+        if al_momento and al_momento != cabezas[repo]:
             relativa = os.path.relpath(c["archivo"], repo).replace("\\", "/")
-            asignadas.append([c, repo, relativa, cuando, commits[llave], None])
+            inicio = commit_al(repo, cuando - VENTANA_TRABAJO) if exacta else ""
+            asignadas.append([c, repo, relativa, cuando, exacta, [al_momento] + ([inicio] if inicio else []),
+                              "" if exacta else motivo])
             por_repo.setdefault(repo, set()).add(relativa)
     historias = {repo: commits_por_archivo(repo, relativas) or {} for repo, relativas in por_repo.items()}
-    for asignada in asignadas:
-        _, repo, relativa, cuando, _, _ = asignada
-        cerca = [sha for sha, t in historias[repo].get(relativa, ()) if cuando < t <= cuando + VENTANA_TRABAJO]
-        asignada[5] = cerca[0] if cerca else None
-        for commit in filter(None, asignada[4:6]):
+    for _, repo, relativa, cuando, exacta, estados, _ in asignadas:
+        if exacta:
+            estados += [sha for sha, t in historias[repo].get(relativa, ())
+                        if cuando - VENTANA_TRABAJO < t <= cuando + VENTANA_TRABAJO]
+        estados[:] = list(dict.fromkeys(estados))
+        for commit in estados:
             if commit != cabezas[repo]:
                 grupos.setdefault((repo, commit), set()).add(relativa)
     hunks = {}
@@ -1958,19 +2168,30 @@ def anclas_movidas(candidatas, repos=None, cache=None):
     except OSError:
         pass
     salida = []
-    for c, repo, relativa, _, antes, despues in asignadas:
-        nuevas = []
-        for commit in (antes, despues):
-            if commit is None:
+    for c, repo, relativa, _, exacta, estados, motivo in asignadas:
+        largo = c.get("hasta", c["desde"]) - c["desde"]
+        nuevas, largo_nuevo = [], largo
+        for commit in estados:
+            lista = [] if commit == cabezas[repo] else hunks.get(f"{repo}|{commit}|{relativa}")
+            if lista is None and nuevas:
                 continue
-            if commit == cabezas[repo]:
-                nuevas.append(c["desde"])
-                continue
-            lista = hunks.get(f"{repo}|{commit}|{relativa}")
             nuevas.append(None if lista is None else mapear_linea(c["desde"], lista))
-        if nuevas and None not in nuevas and max(nuevas) - min(nuevas) <= TOLERANCIA_MOVIDA \
-                and abs(nuevas[0] - c["desde"]) >= MOVIDA_MINIMA:
-            salida.append((c, nuevas[0]))
+            if len(nuevas) == 1 and nuevas[0] is not None and largo:
+                hasta = mapear_linea(c["desde"] + largo, lista)
+                largo_nuevo = hasta - nuevas[0] if hasta is not None and hasta > nuevas[0] else largo
+        if not nuevas or None in nuevas:
+            continue
+        corrimiento = nuevas[0] - c["desde"]
+        if exacta and max(nuevas) - min(nuevas) <= TOLERANCIA_MOVIDA:
+            if abs(corrimiento) >= MOVIDA_MINIMA:
+                salida.append((c, nuevas[0], {"opciones": [], "corrimiento": corrimiento, "largo": largo_nuevo,
+                                              "motivo": ""}))
+        elif all(abs(n - c["desde"]) >= MOVIDA_MINIMA for n in nuevas):
+            opciones = []
+            for n in sorted(set(nuevas)) if exacta else ():
+                if not opciones or n - opciones[-1] > TOLERANCIA_MOVIDA:
+                    opciones.append(n)
+            salida.append((c, None, {"opciones": opciones, "corrimiento": corrimiento, "largo": largo, "motivo": motivo}))
     return salida
 
 
@@ -2044,8 +2265,9 @@ def revisar_anclas(cerebro, codigo=None):
                     marcadas.append(registro)
                 elif not buscados:
                     sin_nombre.append(registro)
-    for registro, nueva in anclas_movidas(sin_nombre):
-        registro.update(estado="movida", propuesta=nueva)
+    for registro, nueva, detalle in anclas_movidas(sin_nombre):
+        registro.update(estado="movida", propuesta=nueva, competidores=[{"por": "", "linea": n} for n in detalle["opciones"]],
+                        _corrimiento=detalle["corrimiento"], _largo=detalle["largo"], _motivo=detalle["motivo"])
         marcadas.append(registro)
     return marcadas, cuentas
 
@@ -2205,9 +2427,23 @@ def regla_anclas(cerebro):
     for ancla in marcadas:
         nombre = Path(ancla["archivo"]).name
         donde = corto(ancla["archivo"])
-        largo = ancla["hasta"] - ancla["desde"]
+        largo = ancla.pop("_largo", ancla["hasta"] - ancla["desde"])
         propuesta = rango(ancla["propuesta"], ancla["propuesta"] + largo) if ancla["propuesta"] else None
-        if ancla["estado"] == "corrida" and ancla["competidores"]:
+        corrimiento = abs(ancla.pop("_corrimiento", 0) or 0)
+        motivo = ancla.pop("_motivo", "")
+        if ancla["estado"] == "movida" and not propuesta:
+            if ancla["competidores"]:
+                lugares = " o la ".join(str(c["linea"]) for c in ancla["competidores"])
+                texto = (f'Cita {ancla["cita"]}, y desde que se escribió ese renglón el código de alrededor se movió, pero '
+                         f"cerca de esa fecha hubo commits a {donde}: según cuál se haya mirado, hoy estaría en la {lugares}, "
+                         "así que no propongo un número.")
+            else:
+                texto = (f'Cita {ancla["cita"]}, y según git el código de {donde} se corrió por lo menos '
+                         f'{cantidad(corrimiento, "línea", "líneas")} desde que el renglón ya estaba, pero no sé de cuándo es '
+                         f"la cita ({POR_QUE_SIN_FECHA.get(motivo, POR_QUE_SIN_FECHA['archivo'])}), así que no propongo un "
+                         "número.")
+            arreglo = "Revisar a mano a qué apunta la cita; si se corrige, citar por nombre para que no se vuelva a correr."
+        elif ancla["estado"] == "corrida" and ancla["competidores"]:
             lugares = [f'{citar(c["por"], LARGO_CITA)} en la {c["linea"]}' for c in ancla["competidores"]]
             texto = (f'Cita {ancla["cita"]}, pero ningún nombre de la cita aparece cerca ni en el bloque que la contiene: '
                      f"en {donde} están lejos entre sí ({lista_humana(lugares)}), así que no propongo un número.")
@@ -2571,11 +2807,13 @@ def revisar(cerebro, saltos=None, filtrar=True):
     hilos = [fondo("commits", regla_commits), fondo("hechos", regla_hechos), fondo("resuelto", regla_resuelto)]
     hallazgos = []
     hallazgos += regla_indice(cerebro)
+    hallazgos += regla_ambiguas(cerebro)
     hallazgos += regla_frontmatter(cerebro)
     hallazgos += regla_rutas(cerebro, rutas)
     hallazgos += regla_tamano(cerebro)
     hallazgos += regla_partes(cerebro)
     hallazgos += regla_copias_de_conflicto(cerebro)
+    hallazgos += regla_datos_rotos(cerebro)
     hallazgos += regla_cifras(cerebro)
     hallazgos += regla_probado(cerebro)
     hallazgos += regla_huerfanas(cerebro, saltos)
@@ -2621,6 +2859,7 @@ NOMBRE_DEL_TONO = {"peligro": ("grave", "graves"), "aviso": ("aviso", "avisos"),
                    "info": ("dato", "datos")}
 SIEMPRE_EN_CONSOLA = {"presupuestoIndice"}
 NOMBRE_EN_GRUPO = {"anclaCorrida": ("ancla corrida", "anclas corridas"),
+                   "ambigua": ("mención ambigua", "menciones ambiguas"),
                    "rutaVieja": ("ruta que ya no existe", "rutas que ya no existen"),
                    "commitInexistente": ("commit que no existe", "commits que no existen"),
                    "huellaProbable": ("huella que parece un commit", "huellas que parecen commits"),
@@ -2692,7 +2931,8 @@ def texto_fila(cerebro, fila, listos):
         cuales += f" y {len(renglones) - RENGLONES_A_LA_VISTA} más"
     nombre = NOMBRE_EN_GRUPO.get(h["regla"], (f'hallazgo «{h["regla"]}»', f'hallazgos «{h["regla"]}»'))
     texto = (f'{ETIQUETA[h["tono"]]} {ruta} — {cantidad(len(fila), *nombre)}'
-             + (f" (renglones {cuales})" if renglones else "") + f'. El primero: {recortar(h["texto"], LARGO_EJEMPLO)}')
+             + (f" (renglón {cuales})" if len(renglones) == 1 else f" (renglones {cuales})" if renglones else "")
+             + f'. El primero: {recortar(h["texto"], LARGO_EJEMPLO)}')
     if numeros:
         texto += (f' → {cantidad(len(numeros), "tiene", "tienen")} el arreglo listo de la pasada de cada noche: '
                   f"{configuracion.comando()} --aplicar {lista} (lo decide {QUIEN}).")
@@ -2764,7 +3004,17 @@ def guardar_descartados(lista, ruta=None):
     escribir_atomico(ruta or DESCARTADOS, json.dumps({"descartados": lista}, ensure_ascii=False, indent=1) + "\n")
 
 
+def descartados_rotos():
+    error = json_roto(DESCARTADOS)
+    if error:
+        print(f"Error: {DESCARTADOS} no es un JSON válido ({error}). No lo piso, porque tiene los avisos que ya "
+              "descartaste: arreglalo (o borralo, si no lo querés) y probá de nuevo.")
+    return bool(error)
+
+
 def main_descartar_aviso(lugar, motivo=""):
+    if descartados_rotos():
+        return 2
     ruta, linea = lugar_pedido(lugar)
     cerebro = nucleo.desde_disco()
     clave = nucleo.normalizar(ruta)
@@ -2819,6 +3069,8 @@ def main_descartados():
 
 
 def main_recuperar_aviso(lugar):
+    if descartados_rotos():
+        return 2
     ruta, linea = lugar_pedido(lugar)
     lista = cargar_descartados()
     clave = nucleo.normalizar(ruta)

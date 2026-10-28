@@ -383,7 +383,7 @@
     commits: 'Revisión de commits'
   };
   const GRUPO_DE_REGLA = { frontmatter: 'ficha', descripcionFloja: 'ficha', ganchoFlojo: 'ficha', archivoSinMarca: 'ficha', casiLlena: 'noEntraEnRead', notaEnPartes: 'noEntraEnRead', ganchoLargo: 'presupuestoIndice',anclaCorrida: 'anclas', anclas: 'anclas', hecho: 'hechos', hechoHuerfano: 'hechos' };
-  const REGLAS_YA_EN_SALUD = new Set(['sinIndice', 'indiceRoto', 'enlaceRoto']);
+  const REGLAS_YA_EN_SALUD = new Set(['sinIndice', 'indiceRoto', 'enlaceRoto', 'ambigua']);
   const SOLO_DATO = new Set(['alcance', 'presupuestoIndice', 'commits']);
   const tonoMedico = t => TONOS_MEDICO.includes(t) ? t : 'info';
   const esProblema = t => t === 'peligro' || t === 'aviso';

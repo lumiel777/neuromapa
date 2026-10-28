@@ -8,16 +8,22 @@ def evento_de(datos):
 def revisar_hook(t):
     seccion("Hook (qué anota y qué nunca guarda)")
     anidado = ("[" * 200000 + "]" * 200000).encode("ascii")
-    rotos = [(nombre, r.returncode, r.stderr[-80:]) for nombre in ("hook_inicio.py", "hook_cerebro.py", "hook_servir.py",
-                                                                    "hook_choques.py", "hook_parecidas.py", "hook_freno.py",
-                                                                    "hook_guardar.py")
-             for r in [correr_hook(nombre, anidado, CEREBRO_CONFIG=str(t / "config.json"))] if r.returncode or r.stderr]
-    probar("una entrada absurda (JSON con 200.000 niveles) no rompe ningún hook: salen con 0 y sin traza", not rotos, rotos)
+    rotos = [(nombre, entrada[:12], r.returncode, r.stderr[-80:])
+             for nombre in ("hook_inicio.py", "hook_cerebro.py", "hook_servir.py", "hook_choques.py", "hook_parecidas.py",
+                            "hook_freno.py", "hook_guardar.py")
+             for entrada in (anidado, b"no es json", b"")
+             for r in [correr_hook(nombre, entrada, CEREBRO_CONFIG=str(t / "config.json"))]
+             if r.returncode or r.stderr or b'"deny"' in r.stdout or b'"block"' in r.stdout]
+    probar("una entrada absurda (JSON con 200.000 niveles), una que no es JSON o una vacía no rompen ningún hook: salen "
+           "con 0, sin traza y sin frenar nada", not rotos, rotos)
     import textos
-    probar("una ruta o una carpeta con caracteres de control no se guarda, y --choques limpia lo que imprime",
+    probar("una ruta o una carpeta con caracteres de control no se guarda, y --choques limpia lo que imprime; lo que se "
+           "cita de una nota (la pista, --sobre, el médico) tampoco los lleva (antes un título con un código de color de "
+           "la consola o un pitido le llegaba así a Claude)",
            hook_evento.ruta_guardable("C:/a\x00b\x1b[31m.md") == "" and hook_evento.ruta_guardable("C:/a b.md") == "C:/a b.md"
            and "c" not in hook_evento.armar({"hook_event_name": "PostToolUse", "tool_name": "Read", "cwd": "C:/x\x1b[2J"})
-           and textos.sin_control("a\x1b[31mb\x00") == "a?[31mb?")
+           and textos.sin_control("a\x1b[31mb\x00") == "a?[31mb?" and textos.citar("Riego\x1b[31m\x07 «ya»") == "«Riego?[31m? ‹ya›»"
+           and textos.recortar("a\x07b\u2028c", 80) == "a?b c")
     recomendada = f'Para leer primero:\n  {t / "memoria" / "perfil-ana.md"}:10-22\n'
     casos = [
         ("un comando de Bash", {"hook_event_name": "PostToolUse", "tool_name": "Bash",

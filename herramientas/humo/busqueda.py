@@ -105,6 +105,48 @@ def revisar_indice_guardado(t):
            not marca.exists() and not viejo.exists(), (marca.exists(), viejo.exists()))
     ruta.write_bytes(b"basura")
     probar("un índice guardado roto no rompe nada: se rearma", isinstance(buscador.desde_disco(), buscador.Indice))
+    revisar_indice_que_no_se_encoge(t, ruta)
+
+
+def revisar_indice_que_no_se_encoge(t, ruta):
+    memoria, apartada = t / "memoria", t / "memoria-apartada"
+    buscador.desde_disco()
+    completo = ruta.read_bytes()
+    total = json.loads(completo.split(b"\n", 1)[0])["notas"]
+
+    def guardadas():
+        return json.loads(ruta.read_bytes().split(b"\n", 1)[0])["notas"]
+
+    def envejecer(segundos):
+        cabeza, cuerpo = ruta.read_text(encoding="utf-8").split("\n", 1)
+        datos = json.loads(cabeza)
+        datos["hecho"] -= segundos
+        ruta.write_text(json.dumps(datos) + "\n" + cuerpo, encoding="utf-8")
+
+    memoria.rename(apartada)
+    try:
+        sin_memoria = buscador.desde_disco()
+        intacto = ruta.read_bytes() == completo
+        envejecer(buscador.AGUANTE_ENCOGIDO + 60)
+        buscador.desde_disco()
+        tras_el_aguante = guardadas()
+    finally:
+        apartada.rename(memoria)
+    probar("si la carpeta de la memoria no responde un rato (un junction caído), el índice guardado no pierde sus notas: "
+           "esa vez contesta con lo que pudo leer, sin guardarlo; pasada media hora del último índice bueno, se acepta",
+           intacto and len(sin_memoria.notas) < total and tras_el_aguante < total, (intacto, total, tras_el_aguante))
+    buscador.desde_disco()
+    suelta = memoria / "suelta.md"
+    original = suelta.read_bytes()
+    suelta.unlink()
+    try:
+        buscador.desde_disco()
+        sin_la_borrada = guardadas()
+    finally:
+        suelta.write_bytes(original)
+    buscador.desde_disco()
+    probar("una nota borrada de verdad (su carpeta se lee bien) sale del índice guardado enseguida",
+           sin_la_borrada == total - 1 and guardadas() == total, (sin_la_borrada, total))
 
 
 def revisar_archivo_en_la_pista():
@@ -628,6 +670,33 @@ def revisar_conector(t):
            and any(e.get("e") == "usuario" for e in de_codex) and any(e.get("p") == "sobre" for e in de_codex)
            and "avisar_charla" in instrucciones and "modo Chat de la app" not in instrucciones,
            (de_codex, instrucciones[:200], r.stderr[-300:]))
+    revisar_conector_actualizado()
+
+
+def revisar_conector_actualizado():
+    import archivos
+    import conector_mcp
+    pedido = {"name": "sobre", "arguments": {"tema": "perfil de ana"}}
+    nuevo, medico_viejo, firma = archivos.json_roto, sys.modules.get("medico"), conector_mcp._codigo["firma"]
+    del archivos.json_roto
+    sys.modules.pop("medico", None)
+    try:
+        conector_mcp._codigo["firma"] = None
+        mezclado = conector_mcp.llamar(pedido)
+        sys.modules.pop("medico", None)
+        conector_mcp._codigo["firma"] = (("otro.py", 0, 0),)
+        aparte = conector_mcp.llamar(pedido)
+    finally:
+        archivos.json_roto = nuevo
+        if medico_viejo is not None:
+            sys.modules["medico"] = medico_viejo
+        conector_mcp._codigo["firma"] = firma
+    texto = lambda r: (r.get("content") or [{}])[0].get("text", "")
+    probar("si el código de Neuromapa cambia mientras el conector MCP sigue abierto (una charla larga mientras se "
+           "actualiza), lo nuevo y lo viejo ya no se mezclan: el pedido se contesta en un proceso aparte con todo el código "
+           "nuevo (antes daba «cannot import name … from archivos» hasta reiniciar la charla)",
+           mezclado.get("isError") and "ImportError" in texto(mezclado)
+           and not aparte.get("isError") and "perfil-ana" in texto(aparte), (texto(mezclado)[:200], texto(aparte)[:300]))
 
 
 def texto_de_respuesta(respuesta):

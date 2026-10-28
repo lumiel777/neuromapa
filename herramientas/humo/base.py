@@ -220,6 +220,7 @@ def revisar_aislamiento(t):
         "la configuración (CEREBRO_CONFIG)": configuracion.archivo(),
         "cerebro.DATOS (la página, sugerencias.json y hechos.json)": nucleo.DATOS,
         "medico.CACHE_COMMITS": medico.CACHE_COMMITS,
+        "medico.CACHE_FECHAS_ANCLAS": medico.CACHE_FECHAS_ANCLAS,
         "medico.HECHOS": medico.HECHOS,
         "medico.regla_hechos (ruta por defecto)": medico.regla_hechos.__defaults__[0],
         "parecidas.CACHE": parecidas.CACHE,

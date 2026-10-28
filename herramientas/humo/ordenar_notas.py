@@ -199,6 +199,57 @@ def revisar_ordenar(t):
            and es_indice and "índice" in es_indice, (error, es_indice))
 
 
+def revisar_bytes_al_reescribir(t):
+    seccion("Renombrar y partir respetan el BOM y los finales de renglón de cada nota")
+    bom = b"\xef\xbb\xbf"
+    mundo = t / "bytes"
+    memoria = mundo / "memoria"
+    memoria.mkdir(parents=True)
+    (mundo / "en-vivo").mkdir()
+
+    def crlf(texto):
+        return texto.replace("\n", "\r\n").encode("utf-8")
+
+    archivos = {
+        "MEMORY.md": bom + crlf("# Memoria\n\n- [Riego](riego.md) — el riego del vivero, día por día\n"
+                                "- [Poda](poda.md) — la poda de los limoneros\n- [Otra](otra.md) — otra cosa\n"),
+        "riego.md": bom + crlf(frontmatter("riego", "El riego del vivero, día por día", "project") + "# Riego\n\n"
+                               + "Un día por sección.\n\n" + "".join(f"## Día {k}\n\n- regado {k}\n\n" for k in range(1, 7))),
+        "poda.md": crlf(frontmatter("poda", "La poda de los limoneros", "project") + "# Poda\n\nVer [[riego]] y riego.md.\n"),
+        "otra.md": (frontmatter("otra", "Otra cosa del vivero", "project") + "# Otra\n\nVer [[riego]].\n").encode("utf-8"),
+    }
+    for nombre, datos in archivos.items():
+        (memoria / nombre).write_bytes(datos)
+    (mundo / "config.json").write_text(json.dumps({"usuario": "Ana", "fuentes": [
+        {"id": "memoria", "nombre": "Memoria", "color": "#E64980", "raices": [[str(memoria), False, ""]],
+         "memoria": True, "foco": True}]}, ensure_ascii=False), encoding="utf-8")
+
+    def forma(datos):
+        fines = "crlf" if datos.count(b"\r\n") == datos.count(b"\n") > 0 else "lf" if b"\r\n" not in datos else "mezcla"
+        return datos.startswith(bom), fines
+
+    def confirmar(*orden):
+        clave = re.search(r"--confirmar ([0-9a-f]{8})", cerebro_en(mundo, *orden)[1])
+        return cerebro_en(mundo, *orden, "--confirmar", clave.group(1) if clave else "")[0]
+
+    def respaldos_iguales(paso, originales):
+        copias = [p for p in (mundo / "respaldos").glob(f"*-{paso}/*") if p.is_file()]
+        return bool(copias) and all(p.read_bytes() == originales.get(p.name.split("-", 1)[1]) for p in copias)
+
+    antes = {p.name: p.read_bytes() for p in memoria.iterdir()}
+    renombrada = confirmar("--renombrar", "riego", "regar")
+    tras_renombrar = {p.name: p.read_bytes() for p in memoria.iterdir()}
+    partida = confirmar("--partir", "regar.md", "--mover", "3-5")
+    despues = {p.name: p.read_bytes() for p in memoria.iterdir()}
+    formas = {nombre: forma(datos) for nombre, datos in despues.items()}
+    esperadas = {"MEMORY.md": (True, "crlf"), "regar.md": (True, "crlf"), "regar-historia-1.md": (True, "crlf"),
+                 "poda.md": (False, "crlf"), "otra.md": (False, "lf")}
+    probar("--renombrar y --partir dejan cada nota como estaba: con BOM la que tenía, CRLF la que era CRLF y LF la que "
+           "era LF, y la nota nueva igual que la que se partió; las copias de respaldo son los bytes de antes, uno por uno",
+           renombrada == 0 and partida == 0 and formas == esperadas and respaldos_iguales("renombrar", antes)
+           and respaldos_iguales("partir", tras_renombrar), formas)
+
+
 def revisar_renombrar(t):
     seccion("Cambiarle el nombre a una nota (--renombrar)")
     ordenar = importlib.import_module("ordenar")

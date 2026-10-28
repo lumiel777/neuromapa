@@ -4,7 +4,7 @@ import time
 import archivos
 import permisos
 import registro
-from archivos import escribir_atomico, leer_objeto_json
+from archivos import apartar_roto, escribir_atomico, leer_objeto_json
 from registro import numero
 from textos import cantidad, decimal
 
@@ -19,6 +19,7 @@ def consolidar(carpeta=None, ahora=None, tanda=TANDA, segundos=SEGUNDOS, casa=No
     carpeta = carpeta or en_vivo()
     ahora = time.time() if ahora is None else ahora
     comienzo = time.perf_counter()
+    apartar_roto(carpeta / ARCHIVO, ahora)
     crudo = leer_objeto_json(carpeta / ARCHIVO)
     if mas_nueva(crudo):
         return Memoria(), 0, True
@@ -141,6 +142,7 @@ def main_detalle(buscado):
 
 
 def olvidar(carpeta, claves, ahora=None):
+    apartar_roto(carpeta / ARCHIVO, ahora)
     crudo = leer_objeto_json(carpeta / ARCHIVO)
     if mas_nueva(crudo):
         return 0

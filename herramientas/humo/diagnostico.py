@@ -336,6 +336,25 @@ def revisar_medico(cerebro, con_git):
     cortado = medico.informe(falso, varios, 3)
     probar("si no entran todos, el «… y N más» cuenta los hallazgos que quedaron afuera, no los renglones",
            any(x.startswith("… y 2 más: 1 anclaCorrida, 1 rutaVieja.") for x in cortado), cortado)
+    con_ambiguas = types.SimpleNamespace(
+        ambiguos=[{"de": "a", "mencion": "progreso.md", "candidatos": ["p1", "p2"]},
+                  {"de": "a", "mencion": "FICHA.md", "candidatos": ["f1"]}],
+        por_id={"a": {"id": "a", "ruta": "/notas/a.md", "_cuerpo": "# A\n\nAnotá en progreso.md.\nY la FICHA.md.\n"},
+                "p1": {"ruta": "/uno/progreso.md"}, "p2": {"ruta": "/dos/progreso.md"}, "f1": {"ruta": "/tres/FICHA.md"}})
+    ambiguas = medico.regla_ambiguas(con_ambiguas)
+    con_ambigua_del_medico = {"nodos": [{"id": "a", "ruta": "/notas/a.md", "grupo": "g"}], "salud": {
+        "ambiguos": [{"de": "a", "mencion": "progreso.md", "candidatos": ["p1", "p2"]}],
+        "medico": [dict(ambiguas[0], nota="a")]}}
+    import problemas
+    tipos = [p["clave"].split("|")[0] for p in problemas.listar(con_ambigua_del_medico, {}, [])]
+    probar("--salud también muestra las menciones ambiguas como aviso, con su renglón y los candidatos (antes solo salían "
+           "en el mapa y en el aviso a los chats: la consola decía 8 avisos y el mapa 22), sin contarlas dos veces en el "
+           "aviso a los chats ni en la página",
+           [(h["regla"], h["tono"], h["linea"]) for h in ambiguas] == [("ambigua", "aviso", 3), ("ambigua", "aviso", 4)]
+           and "/uno/progreso.md" in ambiguas[0]["texto"] and "/dos/progreso.md" in ambiguas[0]["texto"]
+           and "2 notas" in ambiguas[0]["texto"] and "otra carpeta (/tres/FICHA.md)" in ambiguas[1]["texto"]
+           and tipos == ["ambigua"]
+           and "'enlaceRoto', 'ambigua']" in plantilla_entera(CARPETA / "plantilla.html"), (ambiguas, tipos))
     import buscador
     uno = medico.informe(types.SimpleNamespace(nodos=[{}]), [])[0]
     busqueda = buscador.texto_buscar(types.SimpleNamespace(segundos=0.1),
@@ -464,10 +483,13 @@ def revisar_resuelto(t):
 
 def revisar_anclas_movidas(t):
     seccion("Anclas sin nombre que el código movió (git diff desde la fecha del renglón)")
-    probar("el mapeo de líneas sigue inserciones, borrados y cambios",
+    probar("el mapeo de líneas sigue inserciones, borrados y cambios; un renglón editado en el lugar (el mismo número de "
+           "renglones antes y después, pocos) sigue en su posición",
            [medico.mapear_linea(n, [[5, 0, 6, 3]]) for n in (4, 6)] == [4, 9]
            and [medico.mapear_linea(n, [[10, 2, 9, 0]]) for n in (12, 10)] == [10, None]
-           and [medico.mapear_linea(n, [[3, 1, 3, 2]]) for n in (3, 4)] == [None, 5])
+           and [medico.mapear_linea(n, [[3, 1, 3, 2]]) for n in (3, 4)] == [None, 5]
+           and [medico.mapear_linea(n, [[5, 0, 6, 3], [20, 1, 23, 1]]) for n in (20, 21)] == [23, 24]
+           and medico.mapear_linea(11, [[10, 5, 10, 5]]) is None)
     diff = ("diff --git a/Web Server/x.cs b/Web Server/x.cs\nindex 1..2 100644\n--- a/Web Server/x.cs\t\n"
             "+++ b/Web Server/x.cs\t\n@@ -5,0 +6,3 @@ algo\n+a\n+++ b\n+c\ndiff --git a/n.cs b/n.cs\nnew file mode 100644\n"
             "--- /dev/null\n+++ b/n.cs\n@@ -0,0 +1,2 @@\n+x\n+y\n")
@@ -492,8 +514,9 @@ def revisar_anclas_movidas(t):
     subprocess.run(["git", "-C", str(repo), "init", "-q"], check=True, capture_output=True, timeout=30)
     lineas = "".join(f"linea {i}\n" for i in range(1, 61))
     commit(base, "codigo", **{"Mov.cs": lineas})
-    commit(base + 86400, "nota", **{"vieja.md": "Ver `Mov.cs:10`.\n"})
+    commit(base + 86400, "nota", **{"vieja.md": "Ver `Mov.cs:10`.\n", "editada.md": "Ver `Mov.cs:10`.\n"})
     commit(base + 4 * 86400, "mueve", **{"Mov.cs": "".join(f"nueva {i}\n" for i in range(20)) + lineas})
+    commit(base + 5 * 86400, "retoca la nota", **{"editada.md": "Ver `Mov.cs:10`, con una palabra más.\n"})
     commit(base + 8 * 86400, "nota con el arbol sin commitear", **{"apurada.md": "Ver `Mov.cs:50`.\n"})
     commit(base + 8 * 86400 + 7200, "commit del arbol", **{"Mov.cs": "".join(f"otra {i}\n" for i in range(20))
                                                           + "".join(f"nueva {i}\n" for i in range(20)) + lineas})
@@ -502,8 +525,16 @@ def revisar_anclas_movidas(t):
     movidas = medico.anclas_movidas(candidatas, [str(repo)], t / "anclas-git-humo.json")
     probar("un ancla sin nombre que el código movió desde que se escribió el renglón sale con su línea nueva; una escrita "
            "mirando cambios sin commitear (commiteados al rato) no se marca, porque las dos cuentas no coinciden",
-           [(Path(c["_nota_ruta"]).name, nueva) for c, nueva in movidas] == [("vieja.md", 50)],
-           [(Path(c["_nota_ruta"]).name, nueva) for c, nueva in movidas])
+           [(Path(c["_nota_ruta"]).name, nueva) for c, nueva, _ in movidas] == [("vieja.md", 50)],
+           [(Path(c["_nota_ruta"]).name, nueva) for c, nueva, _ in movidas])
+    editada = [{"_nota_ruta": str(repo / "editada.md"), "linea": 1, "archivo": str(repo / "Mov.cs"), "desde": 10,
+                "cita": "Mov.cs:10"}]
+    retocada = medico.anclas_movidas(editada, [str(repo)], t / "anclas-git-humo.json", t / "anclas-fechas-humo.json")
+    probar("si el renglón se retocó después de escribir el ancla (la cita ya estaba antes de ese commit), la fecha de git "
+           "no es la del ancla: sale sin número (antes proponía la 30, contando solo lo que se movió después del retoque)",
+           [(nueva, d["opciones"], d["corrimiento"], d["motivo"]) for _, nueva, d in retocada] == [(None, [], 20, "retocado")],
+           [(nueva, d) for _, nueva, d in retocada])
+    revisar_anclas_de_la_memoria(t, repo, base, commit)
     muchos = [f"carpeta-con-un-nombre-bastante-largo/archivo-de-codigo-con-nombre-largo-{n:04}.cs" for n in range(600)]
     (repo / "carpeta-con-un-nombre-bastante-largo").mkdir()
     commit(base + 10 * 86400, "muchos", **{nombre: "x\n" for nombre in muchos},
@@ -516,3 +547,120 @@ def revisar_anclas_movidas(t):
            "comandos de Windows y no traía ninguno) y encuentra los que tienen tildes o eñes en el nombre",
            len(por_archivo) == 600 and len(historia[0].get("cambiosDespues", [])) == 1,
            (len(por_archivo), historia[0].get("cambiosDespues")))
+
+
+def revisar_datos_rotos(cerebro, t):
+    seccion("Archivos de datos rotos")
+    import aprender
+    import archivos
+    descartados = medico.DESCARTADOS
+    antes = descartados.read_bytes() if descartados.exists() else None
+    roto = b'{"descartados": [{"regla": "yaResuelto", "ruta": "a.md"'
+    try:
+        descartados.write_bytes(roto)
+        descartar = medico.main_descartar_aviso(str(t / "memoria" / "arreglo-login.md") + ":1")
+        recuperar = medico.main_recuperar_aviso(str(t / "memoria" / "arreglo-login.md") + ":1")
+        intacto = descartados.read_bytes() == roto
+        avisos = [h["texto"] for h in medico.regla_datos_rotos(cerebro)]
+    finally:
+        if antes is None:
+            descartados.unlink(missing_ok=True)
+        else:
+            descartados.write_bytes(antes)
+    probar("un descartados.json roto no se pisa: --descartar-aviso y --recuperar-aviso lo dicen y no escriben, y el médico "
+           "avisa que los avisos descartados vuelven a salir (antes se reescribía con lo nuevo y se perdían todos)",
+           descartar == 2 and recuperar == 2 and intacto and any("descartados.json" in a for a in avisos), (descartar, recuperar,
+                                                                                                         intacto, avisos))
+    carpeta = t / "aprendido-roto"
+    carpeta.mkdir()
+    (carpeta / aprender.ARCHIVO).write_bytes(b'{"version": 3, "pares": {')
+    apartado = archivos.apartar_roto(carpeta / aprender.ARCHIVO, 1767268800)
+    sano = archivos.apartar_roto(carpeta / "no-existe.json") is None
+    consolidada = t / "aprendido-roto-consolidar"
+    consolidada.mkdir()
+    (consolidada / aprender.ARCHIVO).write_bytes(b"{roto")
+    aprender.consolidar(consolidada)
+    sano = sano and len(list(consolidada.glob("aprendido.roto-*.json"))) == 1
+    en_vivo = nucleo.DATOS / "en-vivo"
+    en_vivo.mkdir(exist_ok=True)
+    plantado = en_vivo / "aprendido.roto-20260101-000000.json"
+    plantado.write_bytes(b"{")
+    try:
+        avisos = [h["texto"] for h in medico.regla_datos_rotos(cerebro)]
+    finally:
+        plantado.unlink()
+    probar("un aprendido.json roto se aparta con la fecha en el nombre (en vez de pisarlo con uno nuevo, que perdía lo que "
+           "se mandó olvidar) y el médico avisa dónde quedó",
+           apartado is not None and apartado.name.startswith("aprendido.roto-") and apartado.read_bytes().startswith(b'{"version"')
+           and not (carpeta / aprender.ARCHIVO).exists() and sano
+           and any("aprendido.json estaba roto" in a and str(plantado) in a for a in avisos), (apartado, avisos))
+
+
+def revisar_anclas_de_la_memoria(t, repo, base, commit):
+    historial = importlib.import_module("historial")
+    renglon = "Ver `Mov.cs:10` y `:20`, y `otro/Foo.py:3-4`."
+    del_nodo = sorted(a["cita"] for grupo in medico.anclas_de_nodo({"_cuerpo": renglon}).values() for a in grupo)
+    probar("las citas que se buscan en el historial se arman igual que las anclas de la nota (también las sueltas)",
+           sorted(medico.citas_del_renglon(renglon)) == del_nodo == ["Mov.cs:10", "Mov.cs:20", "otro/Foo.py:3-4"],
+           (medico.citas_del_renglon(renglon), del_nodo))
+    probar("las partes y las historias de una nota son de la misma familia",
+           {medico.familia_de_nota(n) for n in ("nota.md", "nota-parte-2.md", "Nota-historia-3-parte-2.md")} == {"nota"})
+    memoria = t / "memoria-anclas"
+    memoria.mkdir()
+    historial.repo_de(str(memoria)).parent.mkdir(parents=True, exist_ok=True)
+    orden = ["git", f"--git-dir={historial.repo_de(str(memoria))}", f"--work-tree={memoria}"]
+    subprocess.run(orden + ["init", "-q"], check=True, capture_output=True, timeout=30)
+
+    def version(cuando, **notas):
+        for nombre, texto in notas.items():
+            (memoria / nombre).write_text(texto, encoding="utf-8", newline="\n")
+        fecha = f"{cuando} +0000"
+        entorno = dict(os.environ, GIT_AUTHOR_DATE=fecha, GIT_COMMITTER_DATE=fecha)
+        for pasos in (["add", "-A"], ["-c", "user.name=prueba", "-c", "user.email=prueba@example.invalid", "commit", "-q",
+                                      "-m", "versión"]):
+            subprocess.run(orden + pasos, check=True, capture_output=True, timeout=30, env=entorno)
+
+    dia = 86400
+    version(base + 2 * dia, **{"otra.md": "Nada.\n", "raiz.md": "Ver `Mov.cs:12`.\n"})
+    version(base + 2 * dia + dia // 2, **{"nota.md": "Ver `Mov.cs:10`.\n"})
+    version(base + 4 * dia + 3600, **{"apurada-mem.md": "Ver `Mov.cs:15`.\n"})
+    version(base + 9 * dia, **{"nota.md": "Arriba.\n", "nota-parte-2.md": "Ver `Mov.cs:10`.\n"})
+
+    def candidata(nombre, desde):
+        return {"_nota_ruta": str(memoria / nombre), "linea": 1, "archivo": str(repo / "Mov.cs"), "desde": desde,
+                "cita": f"Mov.cs:{desde}"}
+
+    candidatas = [candidata("nota-parte-2.md", 10), candidata("raiz.md", 12), candidata("apurada-mem.md", 15)]
+    cache = t / "anclas-memoria-humo.json"
+    carpetas = historial.carpetas
+    historial.carpetas = lambda: [str(memoria)]
+    try:
+        movidas = medico.anclas_movidas(candidatas, [str(repo)], t / "anclas-git-memoria.json", cache)
+        resultado = sorted((Path(c["_nota_ruta"]).name, nueva, d["opciones"], d["corrimiento"], d["motivo"])
+                           for c, nueva, d in movidas)
+        probar("en la memoria, el ancla se fecha por la primera versión del historial que la trae (aunque después la "
+               "nota se haya partido); si el renglón es más viejo que el historial, o si cerca de esa fecha hubo commits "
+               "que dejarían la línea en lugares distintos, sale sin número",
+               resultado == [("apurada-mem.md", None, [35, 55], 20, ""), ("nota-parte-2.md", 50, [], 40, ""),
+                             ("raiz.md", None, [], 40, "historial")], resultado)
+        version(base + 9 * dia + 3600, **{"nueva.md": "Ver `Mov.cs:20`.\n"})
+        primeras, raiz = medico.primeras_citas(str(memoria), cache)
+        guardado = json.loads(cache.read_text(encoding="utf-8")).get(historial.repo_de(str(memoria)).name, {})
+        probar("el índice de citas del historial se guarda y se pone al día solo con las versiones nuevas",
+               primeras.get("nueva|Mov.cs:20") == base + 9 * dia + 3600 and primeras.get("nota|Mov.cs:10") == base
+               + 2 * dia + dia // 2 and raiz == base + 2 * dia and guardado.get("raiz") == raiz
+               and "nueva|Mov.cs:20" in guardado.get("primeras", {}), (primeras, raiz))
+        version(base + 9 * dia + 7200, **{"rango.md": "Ver `Mov.cs:45-80` y `Mov.cs:30`.\n"})
+        actual = (repo / "Mov.cs").read_text(encoding="utf-8").split("\n")
+        commit(base + 9 * dia + 9 * 3600, "rellena", **{"Mov.cs": "\n".join([f"arriba {i}" for i in range(20)] + actual[:60]
+                                                                 + [f"metida {i}" for i in range(20)] + actual[60:])})
+        rango = dict(candidata("rango.md", 45), hasta=80, cita="Mov.cs:45-80")
+        sueltas = medico.anclas_movidas([rango, candidata("rango.md", 30)], [str(repo)], t / "anclas-git-memoria.json",
+                                        cache)
+        probar("un rango que el código cambió por dentro sale con su largo nuevo (las dos puntas, seguidas por separado); "
+               "una línea del mismo archivo que solo se corrió, con su número",
+               sorted((c["cita"], nueva, d["largo"]) for c, nueva, d in sueltas)
+               == [("Mov.cs:30", 50, 0), ("Mov.cs:45-80", 65, 55)],
+               [(c["cita"], nueva, d) for c, nueva, d in sueltas])
+    finally:
+        historial.carpetas = carpetas
