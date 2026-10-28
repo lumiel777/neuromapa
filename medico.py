@@ -2059,7 +2059,7 @@ def primeras_citas(carpeta, cache=None):
 
 def fechas_de_anclas(candidatas, repos, cache=None):
     import historial
-    carpetas = [os.path.normcase(os.path.realpath(c)) for c in historial.carpetas()] if historial.hay_git() else []
+    carpetas = [(os.path.normcase(os.path.realpath(c)), c) for c in historial.carpetas()] if historial.hay_git() else []
     indices, fechas, en_repo = {}, {}, {}
     for c in candidatas:
         ruta = c["_nota_ruta"]
@@ -2067,7 +2067,7 @@ def fechas_de_anclas(candidatas, repos, cache=None):
             en_repo.setdefault(ruta, []).append(c["linea"])
             continue
         real = os.path.normcase(os.path.realpath(ruta))
-        carpeta = next((x for x in carpetas if real.startswith(x + os.sep)), None)
+        carpeta = next((propia for x, propia in carpetas if real.startswith(x + os.sep)), None)
         if carpeta is not None:
             if carpeta not in indices:
                 indices[carpeta] = primeras_citas(carpeta, cache)
