@@ -8,7 +8,8 @@ sale sube ese número; si no, la actualización puede no traer nada (ver [CONTRI
 - El mapa tiene un diseño nuevo, al estilo de las apps de Apple. Todo hace lo mismo que antes, pero se ve más limpio:
   - El cerebro ocupa toda la ventana. La barra de arriba y la columna de filtros flotan encima, como vidrio
     esmerilado.
-  - «Ahora» (lo que hacen los chats en vivo) es una isla negra arriba al centro. Al tocarla se abre.
+  - «Ahora» (lo que hacen los chats en vivo) es una caja negra abajo a la izquierda. Cerrada es una píldora y se abre
+    tocándola.
   - Los filtros van en tres pestañas (Grupos, Proyectos, Tipos) en vez de una columna larga.
   - La salud se resume en un anillo con un número: el porcentaje de notas sin problemas graves ni avisos. Tocándolo
     se ve el detalle de siempre.

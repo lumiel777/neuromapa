@@ -301,10 +301,18 @@
       const ahora = caja($('#en-vivo'));
       const electro = caja(eeg.el);
       const nota = panel.classList.contains('abierto') ? caja(panel) : null;
-      const izq = ahora && ahora.width ? ahora.right - centro.left + 8 : 12;
+      const muelle = caja($('#controles-grafo'));
+      const ahoraAbajo = ahora && ahora.width && ahora.top > centro.top + centro.height / 2;
+      const izq = ahoraAbajo ? ahora.right - centro.left + 8 : 12;
       let der = electro && electro.width ? centro.right - electro.left + 8 : 12;
       if (nota && nota.width && nota.left < centro.right) der = Math.max(der, centro.right - nota.left + 12);
-      return centro.width - izq - der >= 260 ? [Math.round(izq), Math.round(der)] : null;
+      if (muelle && muelle.width) {
+        const alLado = Math.max(izq, muelle.right - centro.left + 8);
+        if (centro.width - alLado - der >= 260) return [Math.round(alLado), Math.round(der), null];
+        const encima = Math.round(centro.bottom - muelle.top + 8);
+        return centro.width - izq - der >= 260 ? [Math.round(izq), Math.round(der), encima] : null;
+      }
+      return centro.width - izq - der >= 260 ? [Math.round(izq), Math.round(der), null] : null;
     }
     function carrilesRio(eventos, ahora) {
       const t0 = ahora - RIO_VENTANA;
@@ -327,6 +335,7 @@
       if (!lugar) return;
       rio.caja.style.left = lugar[0] + 'px';
       rio.caja.style.right = lugar[1] + 'px';
+      rio.caja.style.bottom = lugar[2] == null ? '' : lugar[2] + 'px';
       const cv = rio.lienzo;
       const w = cv.clientWidth;
       if (!w) return;
