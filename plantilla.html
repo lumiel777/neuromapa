@@ -357,6 +357,9 @@ mark { background: var(--marca); color: inherit; border-radius: 3px; padding: 0 
 .salud-resumen .flecha { flex: none; color: var(--texto-3); }
 .salud-resumen[aria-expanded="true"] .flecha { transform: rotate(180deg); }
 :root:not([data-anim="nada"]) .salud-resumen .flecha { transition: transform 200ms ease; }
+.ver-detalle { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; height: 32px; margin-top: 8px; border: 0; border-radius: 10px; background: color-mix(in srgb, var(--texto-3) 12%, transparent); color: var(--texto-2); font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.ver-detalle:hover { color: var(--texto); background: color-mix(in srgb, var(--texto-3) 20%, transparent); }
+#bloque-ahorro.ahorro-plegado #ahorro-detalle { display: none; }
 #bloque-salud.salud-plegada :is(#salud, #salud-lista, #salud-datos, #salud-pie) { display: none !important; }
 .filtro {
   display: grid;
@@ -963,7 +966,14 @@ body.cine .visita, body.anonimo .visita { display: none; }
 :root[data-anim="completo"] .aviso-flotante:not([hidden]) { animation: aviso-entra 180ms cubic-bezier(.2,.8,.2,1); }
 :root[data-anim="suave"] .aviso-flotante:not([hidden]) { animation: fundir 150ms ease-out; }
 :root:not([data-anim="nada"]) :is(.resultado, .fila, .item-nodo, .filtro, .salud-item, .botonera button, .boton-chico, .boton-icono, .segmentado button, .mini-acciones button, .total) { transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, box-shadow 120ms ease; }
-.lateral, .panel-scroll, .lista, .salud-lista { scrollbar-width: thin; scrollbar-color: var(--borde-fuerte) transparent; }
+@supports not selector(::-webkit-scrollbar) {
+  .lateral, .panel-scroll, .lista, .salud-lista, .en-vivo-cuerpo, .ayuda-cuerpo { scrollbar-width: thin; scrollbar-color: var(--borde-fuerte) transparent; }
+}
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
+::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+::-webkit-scrollbar-thumb { background: var(--borde-fuerte); border: 3px solid transparent; border-radius: 999px; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background-color: var(--texto-3); }
 ::view-transition-old(root), ::view-transition-new(root) { animation-duration: 200ms; }
 :root[data-anim="suave"]::view-transition-old(root), :root[data-anim="suave"]::view-transition-new(root) { animation-duration: 150ms; }
 @media (prefers-reduced-motion: reduce) {
@@ -999,7 +1009,7 @@ body.cine .visita, body.anonimo .visita { display: none; }
 .en-vivo-plegar:hover { color: var(--texto); background: var(--superficie-2); }
 .en-vivo-plegar svg { transition: none; }
 :root:not([data-anim="nada"]) .en-vivo-plegar svg { transition: transform 160ms ease; }
-.en-vivo-cuerpo { max-height: min(46vh, 420px); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--borde-fuerte) transparent; }
+.en-vivo-cuerpo { max-height: min(46vh, 420px); overflow-y: auto; overscroll-behavior: contain; }
 .rio { position: absolute; left: 12px; right: 12px; bottom: 14px; z-index: 4; box-sizing: border-box; padding: 8px 12px 6px; border-radius: 16px; }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { .rio, .eeg, .contador { background: var(--superficie); } }
 .rio canvas { display: block; width: 100%; height: 30px; }
@@ -1081,7 +1091,7 @@ body.cine .visita, body.anonimo .visita { display: none; }
 :root[data-anim="suave"] .ayuda-dialogo[open] { animation: fundir 150ms ease-out; }
 .ayuda-cabeza { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px 10px 18px; border-bottom: 1px solid var(--borde); }
 .ayuda-cabeza h2 { margin: 0; font-size: 16px; font-weight: 650; }
-.ayuda-cuerpo { overflow-y: auto; overscroll-behavior: contain; padding: 4px 18px 18px; font-size: 13px; scrollbar-width: thin; scrollbar-color: var(--borde-fuerte) transparent; }
+.ayuda-cuerpo { overflow-y: auto; overscroll-behavior: contain; padding: 4px 18px 18px; font-size: 13px; }
 .ayuda-cuerpo h3 { margin: 14px 0 6px; font-size: 11.5px; font-weight: 650; letter-spacing: 0.04em; text-transform: uppercase; color: var(--texto-3); }
 .ayuda-cuerpo p { margin: 0 0 6px; color: var(--texto-2); }
 .ayuda-lista { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 4px 18px; }
@@ -1262,11 +1272,6 @@ body.anonimo #bloque-etiquetas, body.anonimo .chip.etiqueta { display: none !imp
           <button type="button" role="tab" id="pestana-tipos" data-pestana="tipos" aria-controls="lateral">Tipos</button>
         </div>
       </section>
-      <section class="bloque" id="bloque-ahorro" hidden>
-        <div class="bloque-cabeza"><h2>Lo que hizo por vos</h2><span class="cuenta">últimos 7 días</span></div>
-        <div id="ahorro" class="salud"></div>
-        <div id="ahorro-detalle" class="aprendido"></div>
-      </section>
       <section class="bloque" data-pestana="grupos">
         <div class="bloque-cabeza">
           <h2>Grupos</h2>
@@ -1309,6 +1314,12 @@ body.anonimo #bloque-etiquetas, body.anonimo .chip.etiqueta { display: none !imp
         <div id="salud-lista" class="salud-lista" hidden></div>
         <p id="salud-datos" class="salud-pie" hidden></p>
         <p id="salud-pie" class="salud-pie" hidden></p>
+      </section>
+      <section class="bloque ahorro-plegado" id="bloque-ahorro" hidden>
+        <div class="bloque-cabeza"><h2>Lo que hizo por vos</h2><span class="cuenta">últimos 7 días</span></div>
+        <div id="ahorro" class="salud"></div>
+        <button type="button" class="ver-detalle" id="ahorro-ver" aria-expanded="false" aria-controls="ahorro-detalle">Ver el detalle</button>
+        <div id="ahorro-detalle" class="aprendido"></div>
       </section>
       <section class="bloque" id="bloque-aprendido" hidden>
         <div class="bloque-cabeza"><h2>Lo que aprendió</h2></div>

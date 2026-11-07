@@ -39,3 +39,18 @@
   }
 
   iniciarAnilloSalud();
+
+  function iniciarDetalleAhorro() {
+    const bloque = document.getElementById('bloque-ahorro');
+    const boton = document.getElementById('ahorro-ver');
+    if (!bloque || !boton) return;
+    function poner(abierto) {
+      bloque.classList.toggle('ahorro-plegado', !abierto);
+      boton.setAttribute('aria-expanded', String(abierto));
+      boton.textContent = abierto ? 'Ocultar el detalle' : 'Ver el detalle';
+    }
+    poner(false);
+    boton.addEventListener('click', () => poner(bloque.classList.contains('ahorro-plegado')));
+  }
+
+  iniciarDetalleAhorro();
