@@ -1075,10 +1075,17 @@
     caja.hidden = false;
     const medirCaja = () => {
       const antes = vivo.tapaPanel;
-      vivo.tapaPanel = caja.hidden || !caja.offsetWidth ? null : [caja.offsetLeft, caja.offsetTop, caja.offsetLeft + caja.offsetWidth, caja.offsetTop + caja.offsetHeight];
+      if (caja.hidden || !caja.offsetWidth || !caja.offsetParent) vivo.tapaPanel = null;
+      else {
+        const r = caja.getBoundingClientRect(), p = caja.offsetParent.getBoundingClientRect();
+        vivo.tapaPanel = [Math.round(r.left - p.left), Math.round(r.top - p.top), Math.round(r.right - p.left), Math.round(r.bottom - p.top)];
+      }
       if (String(antes) !== String(vivo.tapaPanel)) pedirDibujo();
     };
     medirCaja();
+    caja.addEventListener('click', (e) => {
+      if (caja.classList.contains('plegado') && !e.target.closest('button, a, input')) plegar.click();
+    });
     plegar.addEventListener('click', () => {
       ponerPlegado(!caja.classList.contains('plegado'), true);
       medirCaja();

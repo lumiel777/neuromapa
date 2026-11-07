@@ -41,7 +41,7 @@ PRIORIDAD_GRUPO = {f["id"]: f["prioridad"] for f in nucleo.FUENTES if "prioridad
 
 RE_BACKTICK = re.compile(r"`([^`\n]{1,300})`")
 RE_HASH = re.compile(r"^([0-9a-f]{7,40})(?:\.\.\.?([0-9a-f]{7,40}))?$")
-RE_CONTEXTO_SESION = re.compile(r"sesi[oó]n|session|uuid|chat|conversaci", re.I)
+RE_CONTEXTO_SESION = re.compile(r"sesi[oó]n|session|uuid|chat|conversaci|\btokens?\b", re.I)
 RE_CONTEXTO_HUELLA = re.compile(r"\b(?:sha\d*(?:sum)?|md5|crc\d*|hash|huellas?|checksum|blake\d*|xxh\d*)\b|suma de control", re.I)
 RE_HASH_CORTADO = re.compile(r"^([0-9a-f]{7,40})(?:…|\.\.\.)?$", re.I)
 RE_SIGUE_LISTA = re.compile(r" ?(?:[,/+]|(?:y|e|o|u|ni|and|or)\b)[^;()]*$", re.I)
@@ -891,7 +891,9 @@ def regla_ambiguas(cerebro):
         if nota is None:
             continue
         mencion = str(x.get("mencion") or "")
-        posicion = nota["_cuerpo"].find(mencion) if mencion else -1
+        posicion = x.get("posicion")
+        if not isinstance(posicion, int) or not 0 <= posicion < len(nota["_cuerpo"]):
+            posicion = nota["_cuerpo"].find(mencion) if mencion else -1
         rutas = [cerebro.por_id[c]["ruta"] for c in x.get("candidatos") or () if c in cerebro.por_id]
         if len(rutas) == 1:
             texto = (f"Menciona {citar(mencion, LARGO_CITA)} sin ruta; la única nota con ese nombre está en otra carpeta "

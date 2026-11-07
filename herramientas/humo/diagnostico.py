@@ -238,6 +238,10 @@ def revisar_medico(cerebro, con_git):
                                                         " (md5 `ab12cd34ef`) y el hash del commit `ab12cd3`.")]
     probar("una huella de archivo («md5 `…`», «huella `…`») no cuenta como commit; «commit» al lado, sí",
            citados == ["de4dbe7", "ab12cd3"], citados)
+    del_paquete = [v for v, _, _ in medico.extraer_commits("Da `len=52`, el token `0a0027000013` y el sello TQClient al "
+                                                           "final del paquete. Arreglado en el commit `de4dbe7`.")]
+    probar("un valor que la nota llama «token» no se toma por commit (antes avisaba de un commit que no existía)",
+           del_paquete == ["de4dbe7"], del_paquete)
     probar("una huella cortada con «…» se reconoce para las otras notas",
            medico.huellas_de("motor servido (md5 `4649a21d…`)") == {"4649a21d"}, medico.huellas_de("md5 `4649a21d…`"))
     en_lista = medico.huellas_de("SHA OK (motor `0a1b2c3d`, lanzador `4e5f6a7b`,\n  y guardia `5a6b7c8d`)")

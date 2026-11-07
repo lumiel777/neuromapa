@@ -996,13 +996,16 @@ class Cerebro:
             if posicion is not None:
                 self.lugar_roto[llave] = posicion
 
-    def ambiguo(self, de, mencion, candidatos):
+    def ambiguo(self, de, mencion, candidatos, posicion=None):
         llave = (de, mencion.lower())
         if self.de_registro(de):
             return
         if llave not in self.ambiguos_vistos:
             self.ambiguos_vistos.add(llave)
-            self.ambiguos.append({"de": de, "mencion": mencion, "candidatos": sorted(candidatos)})
+            x = {"de": de, "mencion": mencion, "candidatos": sorted(candidatos)}
+            if posicion is not None:
+                x["posicion"] = posicion
+            self.ambiguos.append(x)
 
     def mismo_lugar(self, origen, candidatos):
         return [c for c in candidatos if self.carpeta_de[c] == self.carpeta_de[origen]]
@@ -1158,7 +1161,7 @@ class Cerebro:
             if encontrado:
                 self.agregar(origen, encontrado, "wiki", fragmento(texto, m.start(), m.end()))
             elif candidatos:
-                self.ambiguo(origen, m.group(0), candidatos)
+                self.ambiguo(origen, m.group(0), candidatos, m.start() if en_cuerpo else None)
             elif not RE_ADJUNTO.search(destino) and not self.lleva_a_oculta(origen, destino):
                 self.roto(origen, destino, "wiki", m.start() if en_cuerpo else None)
 
@@ -1180,8 +1183,8 @@ class Cerebro:
             if identificador:
                 self.agregar(origen, identificador, "enlace", fragmento(texto, m.start(), m.end()))
             elif candidatos:
-                self.ambiguo(origen, destino, candidatos)
-            elif objetivo:
+                self.ambiguo(origen, destino, candidatos, m.start() if en_cuerpo else None)
+            elif objetivo and (es_de_red(objetivo) or not os.path.isfile(objetivo)):
                 self.roto(origen, destino, "enlace", m.start() if en_cuerpo else None)
 
     def enlace_lleva_a(self, origen, crudo):
@@ -1311,7 +1314,7 @@ class Cerebro:
 
     def analizar_menciones(self, origen, textos):
         pendientes = []
-        for texto in textos:
+        for k, texto in enumerate(textos):
             for m in RE_MD.finditer(texto):
                 i = m.start()
                 while i > 0 and es_nombre(texto[i - 1]):
@@ -1330,7 +1333,7 @@ class Cerebro:
                 if len(mismos) == 1:
                     self.agregar(origen, mismos[0], "mencion", fragmento(texto, inicio, m.end()))
                 else:
-                    pendientes.append((texto, inicio, m.end(), candidatos))
+                    pendientes.append((texto, inicio, m.end(), candidatos, k == 0))
             for m in RE_HANDOFF.finditer(texto):
                 destino = self.handoff_por_numero.get(int(m.group(1)))
                 if destino:
@@ -1353,7 +1356,7 @@ class Cerebro:
                 if destino:
                     self.agregar(origen, destino, "mencion", fragmento(texto, m.start(), m.end()))
         resueltos = set(self.salientes.get(origen, ()))
-        for texto, inicio, fin, candidatos in pendientes:
+        for texto, inicio, fin, candidatos, en_cuerpo in pendientes:
             a = texto.rfind("\n", 0, inicio) + 1
             b = texto.find("\n", fin)
             linea = texto[a:] if b < 0 else texto[a:b]
@@ -1362,7 +1365,7 @@ class Cerebro:
                 self.agregar(origen, destino, "mencion", fragmento(texto, inicio, fin))
             elif not any((origen, c) in self.fuertes for c in candidatos) \
                     and not RE_GENERICO.search(texto[max(0, inicio - 24):inicio]):
-                self.ambiguo(origen, texto[inicio:fin], candidatos)
+                self.ambiguo(origen, texto[inicio:fin], candidatos, inicio if en_cuerpo else None)
 
     def resolver_documento(self, origen, nombre):
         candidatos = self.por_nombre_sin_md.get(Path(nombre).stem.lower(), [])

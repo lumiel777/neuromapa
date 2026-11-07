@@ -712,11 +712,13 @@
     }
     const util = Math.max(120, ancho - anchoPanel());
     const lados = 44;
-    const arriba = Math.min(64, alto * 0.12);
+    const tapaTodo = presenta.cine ? null : vivo.tapaPanel;
+    const tapaArriba = !!tapaTodo && tapaTodo[1] < alto * 0.2 && tapaTodo[0] > ancho * 0.15;
+    const tapa = tapaArriba ? null : tapaTodo;
+    const arriba = tapaArriba ? Math.max(Math.min(64, alto * 0.12), Math.min(tapaTodo[3] + 8, alto * 0.3)) : Math.min(64, alto * 0.12);
     const abajo = presenta.cine ? Math.min(130, alto * 0.16) : Math.min(52, alto * 0.1);
     const anchoM = Math.max(1, x1 - x0);
     const altoM = Math.max(1, y1 - y0);
-    const tapa = presenta.cine ? null : vivo.tapaPanel;
     const panelAncho = tapa && tapa[2] - tapa[0] > ancho * 0.6;
     const encima = tapa && esMovil() && panelAncho && tapa[1] < alto - abajo ? Math.max(60, alto * 0.35, tapa[1] - arriba - 8) : 0;
     const altoUtil = Math.min(Math.max(60, alto - arriba - abajo), encima || Infinity);

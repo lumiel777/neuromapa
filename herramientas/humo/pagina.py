@@ -60,7 +60,7 @@ def revisar_cerebro(datos):
 
     class Repetido:
         salientes, fuertes, handoff_por_numero, slugs_mencionables = {}, {}, {}, {}
-        avisos = []
+        avisos, posiciones = [], []
 
         def recorrer_ruta(self, texto, inicio, nombre):
             return (inicio, {"x", "y"}, None) if nombre == "claude.md" else None
@@ -74,8 +74,9 @@ def revisar_cerebro(datos):
         def agregar(self, *args):
             pass
 
-        def ambiguo(self, de, mencion, candidatos):
+        def ambiguo(self, de, mencion, candidatos, posicion=None):
             self.avisos.append(mencion)
+            self.posiciones.append(posicion)
 
     repetido = Repetido()
     nucleo.Cerebro.analizar_menciones(repetido, "m1", ["Leé el CLAUDE.md antes. Un CLAUDE.md o cada `CLAUDE.md` sirve; "
@@ -83,6 +84,17 @@ def revisar_cerebro(datos):
     probar("un nombre repetido dicho en general («un CLAUDE.md», «cada CLAUDE.md», «your CLAUDE.md») no es una mención "
            "ambigua; «el CLAUDE.md» o «a CLAUDE.md» sí (antes marcaba «un CLAUDE.md o un MEMORY.md» y no tenía arreglo)",
            repetido.avisos == ["CLAUDE.md", "CLAUDE.md", "CLAUDE.md"], repetido.avisos)
+    repetido.avisos, repetido.posiciones = [], []
+    cuerpo = "# A\n\nUn CLAUDE.md sirve.\nLeé el CLAUDE.md.\n"
+    nucleo.Cerebro.analizar_menciones(repetido, "a", [cuerpo, "el CLAUDE.md"])
+    en_su_renglon = types.SimpleNamespace(
+        ambiguos=[{"de": "a", "mencion": "CLAUDE.md", "candidatos": ["x", "y"], "posicion": repetido.posiciones[0]}],
+        por_id={"a": {"id": "a", "ruta": "/notas/a.md", "_cuerpo": cuerpo}, "x": {"ruta": "/x/CLAUDE.md"},
+                "y": {"ruta": "/y/CLAUDE.md"}})
+    probar("--salud marca la mención ambigua en su renglón, no en el primero donde aparece el nombre (antes, si el nombre "
+           "salía antes dicho en general o dentro de una ruta de afuera, apuntaba a ese renglón, que estaba bien)",
+           repetido.posiciones == [cuerpo.index("el CLAUDE") + 3, None]
+           and [h["linea"] for h in medico.regla_ambiguas(en_su_renglon)] == [4], repetido.posiciones)
     probar("la página recibe del config el usuario, los proyectos y el lóbulo de cada grupo",
            datos.get("usuario") == "Ana" and [p["alias"] for p in datos.get("proyectos", [])] == ["demo"]
            and {g["id"]: g.get("lobulo") for g in datos.get("grupos", [])}.get("memoria") == "temporal",

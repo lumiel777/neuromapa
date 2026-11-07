@@ -1153,6 +1153,7 @@
         const dx = tp[2] + 8 + r.w / 2 - r.x;
         const dy = r.base - (tp[1] - 12);
         if (dx <= dy && tp[2] + 8 + r.w <= ancho - 12) r.x += dx;
+        else if (tp[1] < 24) r.base = Math.min(alto - 12, tp[3] + 20 * e);
         else r.base = Math.max(12, tp[1] - 12);
       }
     }

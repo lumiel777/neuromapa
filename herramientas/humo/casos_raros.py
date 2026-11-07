@@ -28,6 +28,28 @@ def revisar_acentos(t):
                         ("Otra.md", "enlace", "Café.md")] and not rotos, (destinos, rotos, salida[-300:]))
 
 
+def revisar_enlace_afuera(t):
+    seccion("Un enlace a una nota que existe fuera del mapa")
+    mundo = t / "afuera"
+    boveda = mundo / "boveda"
+    (boveda / ".obsidian").mkdir(parents=True)
+    (mundo / "en-vivo").mkdir()
+    (mundo / "otra").mkdir()
+    (mundo / "otra" / "de-otro.md").write_text("# De otro programa\n", encoding="utf-8")
+    existe, falta = (mundo / "otra" / "de-otro.md").as_posix(), (mundo / "otra" / "no-esta.md").as_posix()
+    (boveda / "Origen.md").write_text(f"# Origen\n\n- [la de otro](<{existe}>)\n- [la que no está](<{falta}>)\n",
+                                      encoding="utf-8")
+    (mundo / "config.json").write_text(json.dumps({"usuario": "Ana", "fuentes": [
+        {"id": "boveda", "nombre": "Bóveda", "color": "#228BE6", "raices": [[str(boveda), True, ""]]}]},
+        ensure_ascii=False), encoding="utf-8")
+    codigo, salida = cerebro_en(mundo, "--salida", str(mundo / "mapa.html"), "--json", str(mundo / "mapa.json"))
+    datos = json.loads((mundo / "mapa.json").read_text(encoding="utf-8")) if codigo == 0 else {}
+    rotos = [Path(r.get("destino", "")).name for r in datos.get("salud", {}).get("rotos", [])]
+    probar("un enlace a una nota que existe pero queda fuera de las carpetas del mapa (por ejemplo, las notas de otro "
+           "programa) no es un enlace roto; uno a una que no existe, sí (antes marcaba los dos)",
+           rotos == ["no-esta.md"], (rotos, salida[-300:]))
+
+
 def revisar_invariancia(t):
     seccion("La misma memoria en otra carpeta o en CRLF")
     mundos = {"corta": t / "inv-a", "larga": t / "otra carpeta con espacios y eñes áé" / "inv-b", "crlf": t / "inv-c"}

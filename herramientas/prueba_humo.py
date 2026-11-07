@@ -74,6 +74,7 @@ def main():
                 paso("las rutas de una carpeta temporal", revisar_rutas_temporales, t)
                 paso("las copias de conflicto", revisar_copias_de_conflicto, t)
                 paso("los acentos NFC y NFD", revisar_acentos, t)
+                paso("un enlace a una nota fuera del mapa", revisar_enlace_afuera, t)
                 paso("la misma memoria en otra carpeta", revisar_invariancia, t)
                 paso("las notas mal guardadas", revisar_codificaciones, t)
                 paso("las carpetas sin alias", revisar_raices_sin_alias, t)

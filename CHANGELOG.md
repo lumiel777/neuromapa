@@ -3,7 +3,27 @@
 Las versiones siguen el número de `.claude-plugin/plugin.json` (`claude plugin list` lo muestra, y Claude lo ve con `neuromapa --version`). Cada versión que
 sale sube ese número; si no, la actualización puede no traer nada (ver [CONTRIBUTING.md](CONTRIBUTING.md)).
 
-## 0.1.7 — en prueba
+## 0.1.8 — en prueba
+
+- El mapa tiene un diseño nuevo, al estilo de las apps de Apple. Todo hace lo mismo que antes, pero se ve más limpio:
+  - El cerebro ocupa toda la ventana. La barra de arriba y la columna de filtros flotan encima, como vidrio
+    esmerilado.
+  - «Ahora» (lo que hacen los chats en vivo) es una isla negra arriba al centro. Al tocarla se abre.
+  - Los filtros van en tres pestañas (Grupos, Proyectos, Tipos) en vez de una columna larga.
+  - La salud se resume en un anillo con un número: el porcentaje de notas sin problemas graves ni avisos. Tocándolo
+    se ve el detalle de siempre.
+  - Los botones de abajo se juntan en una barra centrada. Foto, Mi día, Sin notas y Grabar quedan detrás de
+    «Compartir».
+  - La ficha de una nota es una hoja flotante que entra y sale por la derecha.
+  - Con «reducir movimiento» o «reducir transparencia» del sistema, todo queda quieto y sólido.
+- `--salud` marca una mención ambigua en su propio renglón. Antes daba el primer renglón donde aparecía ese nombre,
+  aunque ahí estuviera bien escrito (con la ruta entera o dicho en general, «un `progreso.md`»), y el ambiguo de verdad
+  quedaba más abajo, sin que nadie lo viera.
+- Un valor que la nota llama «token» (por ejemplo, el de un paquete) ya no se toma por un commit que no existe.
+- Un enlace `[texto](ruta.md)` a una nota que existe pero queda fuera de las carpetas del mapa (por ejemplo, las notas
+  de otro programa) ya no sale como enlace roto. Uno a una nota que no existe, sí.
+
+## 0.1.7
 
 - El clon ya no queda a medias en Windows. Tres notas de la demo tenían rutas de 70 a 74 letras y, clonadas dentro de
   una carpeta honda, Windows no las creaba («Filename too long») y git dejaba el clon incompleto. Ahora se llaman

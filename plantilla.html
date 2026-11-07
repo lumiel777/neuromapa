@@ -143,16 +143,25 @@ kbd {
   background: var(--superficie);
   color: var(--texto-2);
 }
-.app { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
+.app { display: flex; flex-direction: column; height: 100vh; height: 100dvh; background: radial-gradient(ellipse 85% 75% at 58% 50%, var(--fondo-grafo-centro), var(--fondo-grafo) 78%); }
 .app > .barra, .app > .aviso-libs { flex: none; }
+.vidrio-flotante {
+  background: var(--vidrio);
+  -webkit-backdrop-filter: blur(24px) saturate(170%);
+  backdrop-filter: blur(24px) saturate(170%);
+  border: 1px solid var(--borde);
+  border-radius: 18px;
+  box-shadow: var(--sombra), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
 .barra {
+  position: relative;
+  z-index: 30;
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 16px;
+  margin: 12px 12px 0;
+  padding: 10px 14px 10px 16px;
   min-height: 58px;
-  background: var(--superficie);
-  border-bottom: 1px solid var(--borde);
 }
 .marca { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .marca svg { flex: none; }
@@ -215,13 +224,13 @@ button.total:disabled { cursor: default; opacity: 0.6; border-color: transparent
   color: var(--texto);
   border-bottom: 1px solid var(--borde);
 }
-.cuerpo { flex: 1; display: grid; grid-template-columns: var(--lateral) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); min-height: 0; }
+.cuerpo { flex: 1; display: grid; grid-template-columns: var(--lateral) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 12px; padding: 12px; min-height: 0; }
 .lateral {
+  position: relative;
+  z-index: 20;
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 14px 14px 28px;
-  background: var(--superficie);
-  border-right: 1px solid var(--borde);
 }
 .lateral-cabeza { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; font-weight: 650; }
 .bloque { padding: 12px 0 14px; border-bottom: 1px solid var(--borde); }
@@ -324,6 +333,31 @@ mark { background: var(--marca); color: inherit; border-radius: 3px; padding: 0 
 .sobre-leer li { min-width: 0; }
 .sobre-aviso { margin: 2px 8px 2px 26px; padding: 3px 7px; border-radius: 6px; font-size: 11.5px; color: var(--aviso); background: var(--aviso-suave); overflow-wrap: anywhere; }
 .filtros { display: grid; gap: 1px; }
+.pestanas { position: relative; display: flex; margin-top: 12px; padding: 3px; border-radius: 11px; background: color-mix(in srgb, var(--texto-3) 16%, transparent); }
+.pestanas button { position: relative; z-index: 1; flex: 1; min-width: 0; height: 30px; padding: 0 6px; border: 0; border-radius: 8px; background: none; color: var(--texto-2); font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pestanas button:hover { color: var(--texto); }
+.pestanas button[aria-selected="true"] { color: var(--texto); }
+.pestanas-pastilla { position: absolute; top: 3px; bottom: 3px; left: 0; width: var(--pw, 0); transform: translateX(var(--px, 0)); border-radius: 8px; background: var(--superficie); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12), 0 3px 10px rgba(0, 0, 0, 0.12); }
+:root:not([data-anim="nada"]) .pestanas-pastilla.pastilla-movil { transition: transform 380ms cubic-bezier(.2,.9,.25,1), width 380ms cubic-bezier(.2,.9,.25,1); }
+.fuera-de-pestana { display: none !important; }
+.salud-resumen { display: flex; align-items: center; gap: 14px; width: 100%; margin-bottom: 10px; padding: 12px 12px 12px 10px; border: 1px solid var(--borde); border-radius: 16px; background: color-mix(in srgb, var(--superficie) 55%, transparent); color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.salud-resumen:hover { background: var(--superficie-2); }
+.salud-resumen:active { transform: scale(0.98); }
+:root:not([data-anim="nada"]) .salud-resumen { transition: transform 100ms ease-out, background-color 120ms ease; }
+.anillo { flex: none; width: 58px; height: 58px; }
+.anillo circle { fill: none; stroke-width: 6; }
+.anillo .pista { stroke: color-mix(in srgb, var(--texto-3) 24%, transparent); }
+.anillo .avance { stroke: var(--c); stroke-linecap: round; }
+.anillo text { fill: var(--texto); font-size: 16px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.salud-resumen-texto { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.salud-resumen-texto b { font-size: 14px; font-weight: 650; letter-spacing: -0.01em; }
+.salud-resumen-texto span { font-size: 12.5px; color: var(--texto-2); }
+.salud-resumen-texto .tono-peligro { color: var(--peligro); }
+.salud-resumen-texto .tono-aviso { color: var(--aviso); }
+.salud-resumen .flecha { flex: none; color: var(--texto-3); }
+.salud-resumen[aria-expanded="true"] .flecha { transform: rotate(180deg); }
+:root:not([data-anim="nada"]) .salud-resumen .flecha { transition: transform 200ms ease; }
+#bloque-salud.salud-plegada :is(#salud, #salud-lista, #salud-datos, #salud-pie) { display: none !important; }
 .filtro {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
@@ -439,7 +473,7 @@ mark { background: var(--marca); color: inherit; border-radius: 3px; padding: 0 
 }
 .ayuda p { margin: 0; font-size: 12px; color: var(--texto-3); line-height: 1.6; }
 .ayuda p + p { margin-top: 8px; }
-.centro { position: relative; min-width: 0; min-height: 0; overflow: hidden; background: radial-gradient(ellipse 80% 70% at 50% 45%, var(--fondo-grafo-centro), var(--fondo-grafo) 75%); }
+.centro { position: relative; min-width: 0; min-height: 0; overflow: hidden; margin: -12px -12px -12px 0; background: transparent; }
 #neuronas { position: absolute; inset: 0; display: block; pointer-events: none; }
 #lienzo { position: absolute; inset: 0; display: block; cursor: grab; touch-action: none; background: transparent; }
 #pulso { position: absolute; inset: 0; display: block; pointer-events: none; }
@@ -518,6 +552,28 @@ body.cine .visita, body.anonimo .visita { display: none; }
 }
 .botonera button + button { border-left: 1px solid var(--borde); }
 .botonera button:hover { background: var(--superficie-2); color: var(--texto); }
+.muelle { gap: 2px; padding: 5px; border-radius: 18px; background: var(--vidrio); -webkit-backdrop-filter: blur(24px) saturate(170%); backdrop-filter: blur(24px) saturate(170%); border: 1px solid var(--borde); box-shadow: var(--sombra), inset 0 1px 0 rgba(255, 255, 255, 0.06); }
+.muelle .botonera { gap: 2px; background: none; border: 0; box-shadow: none; overflow: visible; border-radius: 0; }
+.muelle .botonera button, .muelle-compartir { white-space: nowrap; height: 34px; padding: 0 12px; border: 0; border-radius: 12px; background: none; color: var(--texto-2); font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.muelle .botonera button + button { border-left: 0; }
+.muelle .botonera button:hover, .muelle-compartir:hover { background: color-mix(in srgb, var(--texto-3) 16%, transparent); color: var(--texto); }
+.muelle .botonera button:active, .muelle-compartir:active { transform: scale(0.95); }
+:root:not([data-anim="nada"]) .muelle .botonera button, :root:not([data-anim="nada"]) .muelle-compartir { transition: transform 100ms ease-out, background-color 120ms ease, color 120ms ease; }
+.muelle .botonera button#zoom-mas, .muelle .botonera button#zoom-menos { min-width: 34px; padding: 0; justify-content: center; font-size: 16px; }
+.muelle-sep { flex: none; width: 1px; height: 22px; margin: 0 4px; background: var(--borde-fuerte); opacity: 0.6; }
+.muelle-compartir svg { color: var(--texto-3); }
+.muelle-compartir[aria-expanded="true"] { color: var(--texto); background: color-mix(in srgb, var(--texto-3) 16%, transparent); }
+.muelle-compartir[aria-expanded="true"] svg { transform: rotate(180deg); }
+:root:not([data-anim="nada"]) .muelle-compartir svg { transition: transform 200ms ease; }
+.muelle { z-index: 6; }
+.muelle .botonera.compartir { position: absolute; right: 0; bottom: calc(100% + 8px); padding: 5px; border-radius: 16px; background: var(--vidrio); -webkit-backdrop-filter: blur(24px) saturate(170%); backdrop-filter: blur(24px) saturate(170%); border: 1px solid var(--borde); box-shadow: var(--sombra), inset 0 1px 0 rgba(255, 255, 255, 0.06); transform-origin: 85% 100%; }
+:root[data-anim="completo"] .muelle.compartir-abierto .botonera.compartir { animation: muelle-burbuja 220ms cubic-bezier(.2,.9,.25,1); }
+@keyframes muelle-burbuja { from { opacity: 0; transform: scale(0.92) translateY(6px); } }
+.muelle:not(.compartir-abierto) .botonera.compartir:not(:has(.grabando)) { display: none; }
+@media (min-width: 1200px) {
+  .herramientas.muelle { left: 50%; bottom: 14px; transform: translateX(-50%); }
+  .centro.con-panel .herramientas.muelle { left: calc((100% - min(var(--panel), 56%)) / 2); }
+}
 .contador {
   position: absolute;
   right: 12px;
@@ -642,21 +698,29 @@ body.cine .visita, body.anonimo .visita { display: none; }
 .vacio { color: var(--texto-3); font-size: 13px; margin: 6px 4px; }
 .panel {
   position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: min(var(--panel), 56%);
+  top: 12px;
+  right: 12px;
+  bottom: 12px;
+  width: min(var(--panel), calc(56% - 12px));
   display: flex;
   flex-direction: column;
-  background: var(--superficie);
-  border-left: 1px solid var(--borde);
-  box-shadow: var(--sombra);
+  overflow: hidden;
+  background: color-mix(in srgb, var(--superficie) 88%, transparent);
+  -webkit-backdrop-filter: blur(30px) saturate(170%);
+  backdrop-filter: blur(30px) saturate(170%);
+  border: 1px solid var(--borde);
+  border-radius: 22px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.32), 0 4px 14px rgba(0, 0, 0, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.06);
   z-index: 20;
-  transform: translateX(104%);
+  transform: translateX(calc(100% + 28px)) scale(0.98);
+  opacity: 0;
+  filter: blur(6px);
   visibility: hidden;
-  transition: transform 0.22s ease, visibility 0s linear 0.22s;
+  transition: transform 0.42s cubic-bezier(.2,.9,.25,1), opacity 0.26s ease, filter 0.42s ease, visibility 0s linear 0.42s;
 }
-.panel.abierto { transform: none; visibility: visible; transition: transform 0.22s ease; }
+.panel.abierto { transform: none; opacity: 1; filter: none; visibility: visible; transition: transform 0.42s cubic-bezier(.2,.9,.25,1), opacity 0.2s ease, filter 0.42s ease; }
+:root[data-anim="nada"] .panel { transition: none; filter: none; }
+@media (prefers-reduced-transparency: reduce) { .panel { background: var(--superficie); -webkit-backdrop-filter: none; backdrop-filter: none; } }
 .centro.con-panel .contador { display: none; }
 .centro.con-panel .lista { padding-right: calc(min(var(--panel), 56%) + 16px); }
 .centro.con-panel .banda-local { left: calc((100% - min(var(--panel), 56%)) / 2); max-width: calc(100% - min(var(--panel), 56%) - 24px); }
@@ -852,8 +916,9 @@ body.cine .visita, body.anonimo .visita { display: none; }
 .sin-datos-caja code { font: 13px var(--mono); background: var(--superficie-2); padding: 2px 6px; border-radius: 6px; color: var(--texto); }
 @media (max-width: 899px) {
   .solo-movil { display: inline-grid !important; }
-  .cuerpo { grid-template-columns: minmax(0, 1fr); }
-  .barra { padding: 8px 12px; gap: 8px; flex-wrap: wrap; }
+  .cuerpo { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .centro { margin: -12px; }
+  .barra { margin: 8px 8px 0; padding: 8px 12px; gap: 8px; flex-wrap: wrap; }
   .generado { display: none; }
   .totales { order: 3; width: 100%; justify-content: flex-start; margin-left: 0; }
   .barra .interruptor { margin-left: auto; }
@@ -866,12 +931,13 @@ body.cine .visita, body.anonimo .visita { display: none; }
     width: min(340px, 88vw);
     z-index: 40;
     box-shadow: var(--sombra);
+    border-radius: 0 18px 18px 0;
     transform: translateX(-104%);
     visibility: hidden;
     transition: transform 0.22s ease, visibility 0s linear 0.22s;
   }
   .lateral.abierto { transform: none; visibility: visible; transition: transform 0.22s ease; }
-  .panel { position: fixed; width: min(540px, 100vw); z-index: 50; }
+  .panel { position: fixed; top: 8px; right: 8px; bottom: 8px; width: min(540px, calc(100vw - 16px)); z-index: 50; }
   .contador, .eeg, .rio { display: none; }
   .fila { grid-template-columns: auto minmax(0, 1fr) auto; }
   .fila-fecha { display: none; }
@@ -898,14 +964,28 @@ body.cine .visita, body.anonimo .visita { display: none; }
 :root[data-anim="suave"]::view-transition-old(root), :root[data-anim="suave"]::view-transition-new(root) { animation-duration: 150ms; }
 @media (prefers-reduced-motion: reduce) {
   .panel, .lateral, .contador { transition: none !important; }
+  .panel { filter: none !important; }
 }
 .botonera button#girar[aria-pressed="true"] { color: var(--acento); font-weight: 600; }
 .botonera button#girar { min-width: 76px; justify-content: center; }
 .botonera button#girar.filmando::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #ef4444; box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.18); }
 :root[data-anim="completo"] .botonera button#girar.filmando::before { animation: latir-rec 1.6s ease-in-out infinite; }
 @keyframes latir-rec { 50% { opacity: 0.35; } }
-.en-vivo { position: absolute; left: 12px; bottom: 56px; width: min(300px, calc(100% - 24px)); z-index: 5; background: var(--vidrio); -webkit-backdrop-filter: blur(12px) saturate(1.3); backdrop-filter: blur(12px) saturate(1.3); border: 1px solid var(--borde); border-radius: 12px; box-shadow: var(--sombra); padding: 8px 10px; font-size: 12px; }
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { .en-vivo { background: var(--superficie); } }
+.en-vivo {
+  position: absolute; left: 12px; bottom: 56px; width: min(340px, calc(100% - 24px)); z-index: 5;
+  color-scheme: dark;
+  --texto: #eef0f5; --texto-2: #b4bacb; --texto-3: #8d94a7; --borde: rgba(255, 255, 255, 0.1); --borde-fuerte: rgba(255, 255, 255, 0.2);
+  --superficie: #1a1d25; --superficie-2: rgba(255, 255, 255, 0.08); --acento: #a193ff; --acento-texto: #120f24; --viva: 100%;
+  background: rgba(6, 7, 10, 0.95); color: var(--texto);
+  border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 24px;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.42), 0 2px 6px rgba(0, 0, 0, 0.3);
+  padding: 10px 14px 12px; font-size: 12px;
+}
+:root:not([data-anim="nada"]) .en-vivo { transition: border-radius 260ms cubic-bezier(.2,.9,.25,1), padding 260ms cubic-bezier(.2,.9,.25,1); }
+@media (min-width: 1200px) {
+  .en-vivo { top: 12px; bottom: auto; left: 50%; transform: translateX(-50%); }
+  .centro.con-panel .en-vivo { left: calc((100% - min(var(--panel), 56%)) / 2); }
+}
 .en-vivo-cabeza { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .en-vivo-cabeza b { font-weight: 650; }
 .en-vivo-estado { color: var(--texto-3); }
@@ -923,7 +1003,7 @@ body.cine .visita, body.anonimo .visita { display: none; }
 .rio { position: absolute; left: 12px; right: 12px; bottom: 46px; z-index: 4; box-sizing: border-box; padding: 6px 10px 4px; background: var(--vidrio); -webkit-backdrop-filter: blur(12px) saturate(1.3); backdrop-filter: blur(12px) saturate(1.3); border: 1px solid var(--borde); border-radius: 10px; }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { .rio { background: var(--superficie); } }
 .rio canvas { display: block; width: 100%; height: 30px; }
-.en-vivo.plegado { width: auto; max-width: min(300px, calc(100% - 24px)); border-radius: 999px; padding: 4px 5px 4px 11px; }
+.en-vivo.plegado { width: auto; max-width: min(340px, calc(100% - 24px)); border-radius: 999px; padding: 6px 7px 6px 14px; cursor: pointer; }
 .en-vivo.plegado .en-vivo-cabeza { flex-wrap: nowrap; }
 .en-vivo.plegado .en-vivo-plegar { margin-left: auto; }
 .en-vivo.plegado .en-vivo-plegar svg { transform: rotate(180deg); }
@@ -1054,7 +1134,9 @@ body.cine .grabando-marca:not([hidden]) { display: inline-flex; }
 :root[data-anim="suave"] .zocalo.entra .zocalo-texto { animation: fundir 200ms ease-out both; }
 body.cine .barra, body.cine .aviso-libs, body.cine .lateral, body.cine .en-vivo, body.cine .herramientas, body.cine .contador, body.cine .eeg, body.cine .rio,
 body.cine .banda-local, body.cine .tooltip, body.cine .panel, body.cine .velo, body.cine .lista { display: none !important; }
-body.cine .cuerpo { grid-template-columns: minmax(0, 1fr); }
+body.cine .cuerpo { grid-template-columns: minmax(0, 1fr); padding: 0; gap: 0; }
+body.cine .centro { margin: 0; }
+@media (prefers-reduced-transparency: reduce) { .vidrio-flotante { background: var(--superficie); -webkit-backdrop-filter: none; backdrop-filter: none; } }
 body.cine .pie-cine, body.cine .zocalo { display: block; }
 .repite, .ausencia { position: absolute; top: 12px; left: 0; right: 0; margin-inline: auto; width: max-content; max-width: calc(100% - 24px); z-index: 6; }
 .centro.con-panel .repite, .centro.con-panel .ausencia { right: min(var(--panel), 56%); }
@@ -1114,7 +1196,7 @@ body.anonimo #bloque-etiquetas, body.anonimo .chip.etiqueta { display: none !imp
   </div>
 </div>
 <div id="app" class="app">
-  <header class="barra">
+  <header class="barra vidrio-flotante">
     <button type="button" class="boton-icono solo-movil" id="abrir-lateral" aria-label="Abrir búsqueda y filtros" title="Búsqueda y filtros">
       <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" style="fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
     </button>
@@ -1159,7 +1241,7 @@ body.anonimo #bloque-etiquetas, body.anonimo .chip.etiqueta { display: none !imp
   </dialog>
   <div class="aviso-libs" id="aviso-libs" role="status" hidden></div>
   <main class="cuerpo">
-    <aside class="lateral" id="lateral" aria-label="Búsqueda y filtros">
+    <aside class="lateral vidrio-flotante" id="lateral" aria-label="Búsqueda y filtros">
       <div class="lateral-cabeza solo-movil-bloque" id="lateral-cabeza" hidden>
         <span>Búsqueda y filtros</span>
         <button type="button" class="boton-icono" id="cerrar-lateral" aria-label="Cerrar filtros">
@@ -1173,41 +1255,47 @@ body.anonimo #bloque-etiquetas, body.anonimo .chip.etiqueta { display: none !imp
           <kbd title="Apretá / para buscar">/</kbd>
         </label>
         <div id="resultados" class="resultados" hidden></div>
+        <div class="pestanas" id="pestanas-filtros" role="tablist" aria-label="Qué filtrar">
+          <span class="pestanas-pastilla" aria-hidden="true"></span>
+          <button type="button" role="tab" id="pestana-grupos" data-pestana="grupos" aria-controls="lateral">Grupos</button>
+          <button type="button" role="tab" id="pestana-proyectos" data-pestana="proyectos" aria-controls="lateral">Proyectos</button>
+          <button type="button" role="tab" id="pestana-tipos" data-pestana="tipos" aria-controls="lateral">Tipos</button>
+        </div>
       </section>
       <section class="bloque" id="bloque-ahorro" hidden>
         <div class="bloque-cabeza"><h2>Lo que hizo por vos</h2><span class="cuenta">últimos 7 días</span></div>
         <div id="ahorro" class="salud"></div>
         <div id="ahorro-detalle" class="aprendido"></div>
       </section>
-      <section class="bloque">
+      <section class="bloque" data-pestana="grupos">
         <div class="bloque-cabeza">
           <h2>Grupos</h2>
           <div class="mini-acciones"><button type="button" data-todos="grupos">todos</button><button type="button" data-ninguno="grupos">ninguno</button></div>
         </div>
         <div id="filtro-grupos" class="filtros"></div>
       </section>
-      <section class="bloque" id="bloque-proyectos" hidden>
+      <section class="bloque" id="bloque-proyectos" data-pestana="proyectos" hidden>
         <div class="bloque-cabeza">
           <h2>Proyectos</h2>
           <div class="mini-acciones"><button type="button" data-todos="proyectos">todos</button><button type="button" data-ninguno="proyectos">ninguno</button></div>
         </div>
         <div id="filtro-proyectos" class="filtros"></div>
       </section>
-      <section class="bloque" id="bloque-etiquetas" hidden>
+      <section class="bloque" id="bloque-etiquetas" data-pestana="proyectos" hidden>
         <div class="bloque-cabeza">
           <h2>Etiquetas</h2>
           <div class="mini-acciones"><button type="button" data-todos="etiquetas">todas</button><button type="button" data-ninguno="etiquetas">ninguna</button></div>
         </div>
         <div id="filtro-etiquetas" class="filtros"></div>
       </section>
-      <section class="bloque">
+      <section class="bloque" data-pestana="tipos">
         <div class="bloque-cabeza">
           <h2>Tipos de nota</h2>
           <div class="mini-acciones"><button type="button" data-todos="tipos">todos</button><button type="button" data-ninguno="tipos">ninguno</button></div>
         </div>
         <div id="filtro-tipos" class="filtros"></div>
       </section>
-      <section class="bloque">
+      <section class="bloque" data-pestana="tipos">
         <div class="bloque-cabeza">
           <h2>Conexiones</h2>
           <div class="mini-acciones"><button type="button" data-todos="clases">todas</button><button type="button" data-ninguno="clases">ninguna</button></div>
@@ -1216,6 +1304,7 @@ body.anonimo #bloque-etiquetas, body.anonimo .chip.etiqueta { display: none !imp
       </section>
       <section class="bloque" id="bloque-salud">
         <div class="bloque-cabeza"><h2>Salud</h2></div>
+        <button type="button" class="salud-resumen" id="salud-resumen" aria-expanded="false" aria-controls="salud"></button>
         <div id="salud" class="salud"></div>
         <div id="salud-lista" class="salud-lista" hidden></div>
         <p id="salud-datos" class="salud-pie" hidden></p>
@@ -1312,7 +1401,7 @@ body.anonimo #bloque-etiquetas, body.anonimo .chip.etiqueta { display: none !imp
           <button type="button" class="boton-chico" id="ausencia-repetir">Repetir ese tramo</button>
         </div>
       </section>
-      <div class="herramientas abajo-izq" id="controles-grafo">
+      <div class="herramientas abajo-izq muelle" id="controles-grafo">
         <div class="botonera">
           <button type="button" id="zoom-mas" aria-label="Acercar" title="Acercar">+</button>
           <button type="button" id="zoom-menos" aria-label="Alejar" title="Alejar">−</button>
@@ -1320,7 +1409,9 @@ body.anonimo #bloque-etiquetas, body.anonimo .chip.etiqueta { display: none !imp
           <button type="button" id="reacomodar" title="Sacudir el grafo para que se reacomode">Reacomodar</button>
           <button type="button" id="girar" aria-pressed="true" title="Sigue la acción: cuando Claude trabaja, gira hacia su nota, se acerca y la enfoca">Seguir</button>
         </div>
-        <div class="botonera compartir" role="group" aria-label="Compartir">
+        <span class="muelle-sep" aria-hidden="true"></span>
+        <button type="button" class="muelle-compartir" id="muelle-compartir" aria-expanded="false" aria-controls="botonera-compartir" title="Foto, Mi día, Sin notas y grabar un clip">Compartir<svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true" style="fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round"><path d="M9 6l6 6-6 6"/></svg></button>
+        <div class="botonera compartir" id="botonera-compartir" role="group" aria-label="Compartir">
           <button type="button" id="sacar-foto" title="Baja un PNG del cerebro tal como se ve ahora (P)">Foto</button>
           <button type="button" id="mi-dia" title="Arma una tarjeta con las cifras de tu día y la baja como PNG">Mi día</button>
           <button type="button" id="sin-notas" title="Baja una copia del mapa sin el texto ni los nombres de las notas, que sí se puede pasar">Sin notas</button>
