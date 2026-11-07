@@ -3,7 +3,7 @@
 Las versiones siguen el número de `.claude-plugin/plugin.json` (`claude plugin list` lo muestra, y Claude lo ve con `neuromapa --version`). Cada versión que
 sale sube ese número; si no, la actualización puede no traer nada (ver [CONTRIBUTING.md](CONTRIBUTING.md)).
 
-## 0.1.8 — en prueba
+## 0.1.8
 
 - El mapa tiene un diseño nuevo, al estilo de las apps de Apple. Todo hace lo mismo que antes, pero se ve más limpio:
   - El cerebro ocupa toda la ventana. La barra de arriba y la columna de filtros flotan encima, como vidrio
