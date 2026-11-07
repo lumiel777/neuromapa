@@ -730,6 +730,11 @@ def objetivo_de(carpeta, crudo):
     return destino, os.path.normpath(os.path.join(str(carpeta), limpio.lstrip("\\/") if limpio[:1] in "\\/" else limpio))
 
 
+def existe_tal_cual(crudo):
+    limpio = partes_de_enlace(crudo)[1]
+    return bool(limpio) and os.path.isabs(limpio) and not es_de_red(limpio) and os.path.isfile(limpio)
+
+
 def es_nombre(c):
     return c.isalnum() or c in "_-."
 
@@ -1184,7 +1189,7 @@ class Cerebro:
                 self.agregar(origen, identificador, "enlace", fragmento(texto, m.start(), m.end()))
             elif candidatos:
                 self.ambiguo(origen, destino, candidatos, m.start() if en_cuerpo else None)
-            elif objetivo and (es_de_red(objetivo) or not os.path.isfile(objetivo)):
+            elif objetivo and (es_de_red(objetivo) or not (os.path.isfile(objetivo) or existe_tal_cual(m.group(2)))):
                 self.roto(origen, destino, "enlace", m.start() if en_cuerpo else None)
 
     def enlace_lleva_a(self, origen, crudo):
