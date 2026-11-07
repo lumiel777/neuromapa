@@ -577,32 +577,36 @@ body.cine .visita, body.anonimo .visita { display: none; }
 .contador {
   position: absolute;
   right: 12px;
-  bottom: 12px;
+  top: 12px;
   font-size: 12px;
   color: var(--texto-3);
-  background: var(--superficie);
-  border: 1px solid var(--borde);
+  font-variant-numeric: tabular-nums;
   border-radius: 999px;
-  padding: 4px 11px;
+  padding: 6px 13px;
   z-index: 5;
-  transition: right 0.22s ease;
 }
 .eeg {
   position: absolute;
   right: 12px;
-  bottom: 46px;
+  bottom: 14px;
   width: 200px;
   box-sizing: border-box;
   z-index: 5;
   pointer-events: none;
-  background: var(--vidrio);
-  border: 1px solid var(--borde);
-  border-radius: 10px;
-  padding: 5px 8px 6px;
+  border-radius: 16px;
+  padding: 8px 10px 7px;
   display: grid;
   gap: 2px;
 }
-.eeg canvas { display: block; width: 184px; height: 30px; }
+.contador, .eeg, .rio {
+  background: var(--vidrio);
+  -webkit-backdrop-filter: blur(24px) saturate(170%);
+  backdrop-filter: blur(24px) saturate(170%);
+  border: 1px solid var(--borde);
+  box-shadow: var(--sombra), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+@media (prefers-reduced-transparency: reduce) { .contador, .eeg, .rio { background: var(--superficie); -webkit-backdrop-filter: none; backdrop-filter: none; } }
+.eeg canvas { display: block; width: 178px; height: 30px; }
 .eeg span { font-size: 11px; line-height: 1.3; color: color-mix(in srgb, var(--c, var(--texto-3)) var(--viva), black); text-align: right; }
 .centro.con-panel .eeg { display: none; }
 .banda-local {
@@ -996,8 +1000,8 @@ body.cine .visita, body.anonimo .visita { display: none; }
 .en-vivo-plegar svg { transition: none; }
 :root:not([data-anim="nada"]) .en-vivo-plegar svg { transition: transform 160ms ease; }
 .en-vivo-cuerpo { max-height: min(46vh, 420px); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--borde-fuerte) transparent; }
-.rio { position: absolute; left: 12px; right: 12px; bottom: 46px; z-index: 4; box-sizing: border-box; padding: 6px 10px 4px; background: var(--vidrio); -webkit-backdrop-filter: blur(12px) saturate(1.3); backdrop-filter: blur(12px) saturate(1.3); border: 1px solid var(--borde); border-radius: 10px; }
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { .rio { background: var(--superficie); } }
+.rio { position: absolute; left: 12px; right: 12px; bottom: 14px; z-index: 4; box-sizing: border-box; padding: 8px 12px 6px; border-radius: 16px; }
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { .rio, .eeg, .contador { background: var(--superficie); } }
 .rio canvas { display: block; width: 100%; height: 30px; }
 .en-vivo.plegado { width: auto; max-width: min(340px, calc(100% - 24px)); border-radius: 999px; padding: 6px 7px 6px 14px; cursor: pointer; }
 .en-vivo.plegado .en-vivo-cabeza { flex-wrap: nowrap; }
