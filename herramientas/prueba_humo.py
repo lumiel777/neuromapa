@@ -110,6 +110,7 @@ def main():
             paso("una memoria que se llena durante el día", revisar_memoria_llena, t)
             paso("partir sola aunque no haya nada viejo", revisar_partir_siempre, t)
             paso("partir sola en varias partes", revisar_partir_en_varias, t)
+            paso("un renglón más grande que una lectura", revisar_renglon_gigante, t)
             paso("tablero de pendientes", revisar_pendientes, t)
             paso("reglas por carpeta", revisar_reglas, t)
             paso("recetas que pueden ser skills", revisar_recetas, t)

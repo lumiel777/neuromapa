@@ -63,6 +63,49 @@ def revisar_partir_en_varias(t):
            (len(agregados), salida.count("Partió sola")))
 
 
+def revisar_renglon_gigante(t):
+    seccion("Una memoria con un renglón más grande que una lectura no se parte en bucle")
+    mundo = t / "renglon-gigante"
+    memoria = mundo / "memoria"
+    memoria.mkdir(parents=True)
+    (mundo / "en-vivo").mkdir()
+    gigante = "**Ronda grande:** " + "; ".join(f"hecho {k} (`{k:07x}`) con algo de texto" for k in range(1800))
+    ronda = memoria / "ronda.md"
+    ronda.write_text(frontmatter("ronda", "Lo que se hizo en la ronda grande, todo junto", "project")
+                     + "# Ronda\n\n" + "".join(f"Antes {k}: " + "palabra " * 60 + "\n\n" for k in range(8))
+                     + gigante + "\n\n" + "".join(f"- Cola {k}: " + "palabra " * 40 + "\n" for k in range(25)),
+                     encoding="utf-8", newline="\n")
+    (memoria / "MEMORY.md").write_text("# Memoria\n\n- [Ronda](ronda.md) — la ronda grande\n", encoding="utf-8",
+                                       newline="\n")
+    (mundo / "config.json").write_text(json.dumps({"usuario": "Ana", "partir_sola": True, "fuentes": [
+        {"id": "memoria", "nombre": "Memoria", "color": "#E64980", "raices": [[str(memoria), False, ""]],
+         "memoria": True, "foco": True}]}, ensure_ascii=False), encoding="utf-8", newline="\n")
+
+    def envejecer():
+        viejo = time.time() - 3600
+        for nota in memoria.glob("*.md"):
+            os.utime(nota, (viejo, viejo))
+
+    def con_texto():
+        return sorted(r for p in memoria.glob("ronda*.md") for r in p.read_text(encoding="utf-8").split("\n") if r.strip())
+
+    envejecer()
+    todos = con_texto()
+    codigo, salida = cerebro_en(mundo, "--partir-llenas")
+    partes = sorted(memoria.glob("ronda*.md"))
+    vacias = [p.name for p in partes if not [r for r in p.read_text(encoding="utf-8").split("\n")[7:]
+                                             if r.strip() and not r.startswith(("# ", "Sigue de ", "Sigue en ", "- Sigue en "))]]
+    probar("no deja partes vacías ni crea una tras otra: corta por donde puede y para",
+           codigo == 0 and len(partes) <= 3 and not vacias
+           and sum(gigante in p.read_text(encoding="utf-8") for p in partes) == 1, (salida[-600:], [p.name for p in partes], vacias))
+    probar("dice que el renglón gigante hay que pasarlo a ítems a mano, y no se pierde ni un renglón",
+           "un solo renglón de" in salida and not [r for r in todos if r not in con_texto()], salida[-600:])
+    envejecer()
+    codigo, otra = cerebro_en(mundo, "--partir-llenas")
+    probar("volver a correrla no crea ninguna parte nueva", codigo == 0 and sorted(memoria.glob("ronda*.md")) == partes,
+           (otra[-400:], [p.name for p in sorted(memoria.glob("ronda*.md"))]))
+
+
 def revisar_memoria_llena(t):
     seccion("Una memoria que pasa el tope durante el día")
     dormir = importlib.import_module("dormir")
@@ -395,13 +438,19 @@ def revisar_partir_siempre(t):
     con_cola = corte("".join(f"renglón {j} " + "palabra " * 12 + "\n" for j in range(400)) + "\n## Cola\n\n" + relleno(1500))
     probar("no corta dentro de un bloque de código (ni como último recurso), y no saca una parte de migajas: si el único "
            "título dejaría casi todo donde está, corta entre renglones",
-           corte("Introducción.\n\n```text\n" + por_parrafos + "```\n")[0] == "```text"
+           corte("Introducción.\n\n" + relleno(4000) + "\n```text\n" + por_parrafos + "```\n")[0] == "```text"
+           and corte("Introducción.\n\n```text\n" + por_parrafos + "```\n")[0] is None
            and corte("```text\n" + por_parrafos + "```\n")[0] is None
            and re.match(r"renglón \d+ ", con_cola[0] or "") and 20000 < con_cola[1] < 30000,
-           (corte("Introducción.\n\n```text\n" + por_parrafos + "```\n"), corte("```text\n" + por_parrafos + "```\n"), con_cola))
-    renglon, queda = corte("Introducción.\n\n## Único\n\n- ítem grande: " + "palabra " * 5500 + "\n")
+           (corte("Introducción.\n\n" + relleno(4000) + "\n```text\n" + por_parrafos + "```\n"),
+            corte("Introducción.\n\n```text\n" + por_parrafos + "```\n"), corte("```text\n" + por_parrafos + "```\n"),
+            con_cola))
+    renglon, queda = corte("Introducción.\n\n" + relleno(4000) + "\n## Único\n\n- ítem grande: " + "palabra " * 5500 + "\n")
     probar("no deja un título solo al final de la primera parte: el corte no cae justo debajo de un título",
            renglon == "## Único", (renglon, queda))
+    casi_nada = corte("Introducción.\n\n## Único\n\n- ítem grande: " + "palabra " * 5500 + "\n")
+    probar("si arriba del único corte no queda casi nada, no corta: la parte nueva sería igual de grande y se volvería a "
+           "partir sin fin", casi_nada[0] is None, casi_nada)
     carpeta = t / "tomos"
     carpeta.mkdir()
     guia = carpeta / "guia.md"

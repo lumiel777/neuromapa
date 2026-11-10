@@ -1232,7 +1232,7 @@ def elegir_corte(renglones, piezas, objetivo, techo, alivio):
         if mejor is not None:
             break
         for i, rango in cortes_de(renglones, piezas, entre_renglones):
-            if i <= primero or antes[-1] - antes[i] < alivio:
+            if i <= primero or antes[-1] - antes[i] < alivio or antes[i] < alivio:
                 continue
             en_banda = objetivo / 2 <= antes[i] <= (objetivo + techo) / 2
             nota = (not en_banda, rango if en_banda else 0, abs(antes[i] - objetivo))
@@ -1276,6 +1276,10 @@ def plan_sola(cerebro, nodo, lleno, opciones, hoy):
     eleccion = next((c for c in caminos if total - c["bytes"] <= techo), None) or max(
         caminos, key=lambda c: c["bytes"], default=None)
     if not eleccion:
+        largo = max((len(r.encode("utf-8")) for r in renglones), default=0)
+        if largo * 2 > total:
+            return None, None, (f"casi todo es un solo renglón de {kb(largo)}, y la nota solo se corta entre renglones: "
+                                "hay que pasar ese renglón a ítems o párrafos a mano")
         return None, None, "no tiene ni un renglón suelto por donde cortarla (es un solo bloque de código o con sangría)"
     capacidad = HISTORIA_LLENA * medico.TOKENS_READ * medico.BYTES_POR_TOKEN
     if "corte" not in eleccion and eleccion["bytes"] > capacidad:
@@ -1287,6 +1291,9 @@ def plan_sola(cerebro, nodo, lleno, opciones, hoy):
         plan, error = planear(ruta, "", memoria=True, indice=indice, titulo_nota=nodo["titulo"], corte=eleccion["corte"])
         if error:
             return None, None, error
+        if len(plan["bytes_destino"]) > total - alivio:
+            return None, None, (f"la parte nueva quedaría casi igual de grande ({kb(len(plan['bytes_destino']))} de "
+                                f"{kb(total)}): partirla no la achica")
         return plan, {"tomo": True, "piezas": len(plan["movidas"]),
                       "primero": recortar(limpiar(plan["movidas"][0]["titulo"]), 50)}, None
     dicho = {"entradas": eleccion["entradas"], "primera": dia_y_mes(eleccion["primera"]),

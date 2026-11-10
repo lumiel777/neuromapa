@@ -3,6 +3,22 @@
 Las versiones siguen el número de `.claude-plugin/plugin.json` (`claude plugin list` lo muestra, y Claude lo ve con `neuromapa --version`). Cada versión que
 sale sube ese número; si no, la actualización puede no traer nada (ver [CONTRIBUTING.md](CONTRIBUTING.md)).
 
+## 0.1.9
+
+- El cerebro ya no se pone opaco solo. La página tiene un piloto que, si cree que la compu va lenta, apaga el
+  resplandor, simplifica las conexiones y baja las animaciones o la resolución. Con el diseño de la 0.1.8 eso pasaba
+  de más, porque el vidrio esmerilado que quedaba encima del mapa animado encarecía cada cuadro. Ahora:
+  - La ficha de la nota ya no lleva vidrio esmerilado, y la barra de abajo, el río del tiempo, el electro y el
+    contador llevan uno mucho más liviano.
+  - El piloto no cuenta los tirones del zoom con la rueda, y antes de apagar el resplandor tiene que ver la lentitud
+    dos veces seguidas.
+  - Hay una opción para que no baje nada: «Calidad siempre al máximo», arriba de todo en la ayuda (?). También se
+    prende con el botón «No bajarla nunca» que traen los carteles del piloto.
+- El fondo del cerebro vuelve a ser el de antes de la 0.1.8: la luz de fondo pegada al mapa, no a toda la ventana.
+- El médico ya no parte una nota una y otra vez cuando casi todo su texto está en un solo renglón gigante. Antes, en
+  cada pasada, armaba partes nuevas igual de grandes (24 partes vacías en una mañana). Ahora avisa que ese renglón hay
+  que pasarlo a ítems a mano.
+
 ## 0.1.8
 
 - El mapa tiene un diseño nuevo, al estilo de las apps de Apple. Todo hace lo mismo que antes, pero se ve más limpio:

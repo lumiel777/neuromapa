@@ -1373,22 +1373,13 @@
     });
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', alCambiarTema);
 
+    const casillaCalidad = $('#calidad-fija');
+    casillaCalidad.checked = anim.calidadFija;
+    casillaCalidad.addEventListener('change', () => ponerCalidadFija(casillaCalidad.checked));
+
     $('#alternar-animaciones').addEventListener('click', () => {
       anim.pref = !anim.pref;
-      if (anim.pref) {
-        anim.nivel = 2;
-        anim.resplandor = true;
-        anim.enfoque = true;
-        anim.aristasLivianas = false;
-        anim.muestras = anim.malas = 0;
-        anim.msVentana = anim.msSano = anim.subidas = 0;
-        anim.bajadas = [];
-        anim.esperaSubir = 20000;
-        anim.dtBase = Infinity;
-        anim.lentosSeguidos = 0;
-        anim.escala = 1;
-        ajustarLienzo();
-      }
+      if (anim.pref) restaurarCalidad();
       try { localStorage.setItem('cerebro-animaciones', anim.pref ? 'si' : 'no'); } catch (e) {}
       aplicarModo();
     });

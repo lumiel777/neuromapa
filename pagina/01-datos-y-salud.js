@@ -547,12 +547,20 @@
     pedirDibujo();
   }
 
-  function aviso(texto) {
+  function aviso(texto, accion) {
     const t = $('#toast');
     t.textContent = texto;
+    if (accion) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'aviso-accion';
+      b.textContent = accion.texto;
+      b.addEventListener('click', () => { t.hidden = true; accion.hacer(); });
+      t.append(' ', b);
+    }
     t.hidden = false;
     clearTimeout(aviso.temporizador);
-    aviso.temporizador = setTimeout(() => { t.hidden = true; }, 2600);
+    aviso.temporizador = setTimeout(() => { t.hidden = true; }, accion ? 9000 : 2600);
   }
 
   function muestraLinea(clase) {

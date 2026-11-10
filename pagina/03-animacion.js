@@ -150,11 +150,47 @@
     despertar();
   }
 
+  window.addEventListener('wheel', () => { anim.tsRueda = performance.now(); }, { passive: true, capture: true });
+
+  try { anim.calidadFija = localStorage.getItem('cerebro-calidad') === 'fija'; } catch (e) { anim.calidadFija = false; }
+
+  function restaurarCalidad() {
+    anim.nivel = 2;
+    anim.resplandor = true;
+    anim.enfoque = true;
+    anim.aristasLivianas = false;
+    anim.masivoForzado = false;
+    anim.muestras = anim.malas = 0;
+    anim.msVentana = anim.msSano = anim.subidas = 0;
+    anim.bajadas = [];
+    anim.esperaSubir = 20000;
+    anim.dtBase = Infinity;
+    anim.lentosSeguidos = 0;
+    anim.lucesEnDuda = false;
+    anim.escala = 1;
+    ajustarLienzo();
+  }
+
+  function ponerCalidadFija(fija) {
+    anim.calidadFija = fija;
+    try { localStorage.setItem('cerebro-calidad', fija ? 'fija' : 'auto'); } catch (e) {}
+    const c = $('#calidad-fija');
+    if (c) c.checked = fija;
+    if (fija) {
+      restaurarCalidad();
+      aplicarModo();
+      aviso('Listo: la calidad queda siempre al máximo. Se cambia en la ayuda (?).');
+    }
+  }
+
+  const NO_BAJAR = { texto: 'No bajarla nunca', hacer: () => ponerCalidadFija(true) };
+
   function medirCuadro(ahora) {
     const previo = anim.tsPrevio;
     anim.tsPrevio = ahora;
+    if (anim.calidadFija) return;
     if (!anim.encadenado || !completo() || arrastrando || ahora - anim.tsListo < 2000 || introCorriendo(ahora)
-      || (anim.calmado && anim.escala < 1)) return;
+      || (anim.calmado && anim.escala < 1) || ahora - (anim.tsRueda || -1e9) < 300) return;
     const dt = ahora - previo;
     if (!previo || dt <= 0) return;
     anim.lentosSeguidos = dt > MS_MUY_LENTO + (anim.calmado ? pausaDeCalma() : 0) ? anim.lentosSeguidos + 1 : 0;
@@ -173,6 +209,7 @@
     const bajar = anim.malas >= anim.muestras * 2 / 3;
     const sana = anim.malas < anim.muestras / 10;
     anim.msSano = sana ? anim.msSano + anim.msVentana : 0;
+    if (!bajar) anim.lucesEnDuda = false;
     anim.muestras = anim.malas = 0;
     anim.msVentana = 0;
     if (bajar) bajarNivel();
@@ -193,31 +230,36 @@
     if (anim.nivel <= 1) {
       anim.masivoForzado = true;
       anim.bajadas.push('masivo');
-      aviso('Pasé al dibujo simple de las conexiones porque la compu seguía lenta. Si se recupera, lo vuelvo a subir solo.');
+      aviso('Pasé al dibujo simple de las conexiones porque la compu seguía lenta. Si se recupera, lo vuelvo a subir solo.', NO_BAJAR);
       pedirDibujo();
       return;
     }
     if (!anim.aristasLivianas && giro.activo) {
       anim.aristasLivianas = true;
       anim.bajadas.push('aristas');
-      aviso('Simplifiqué las conexiones mientras el cerebro gira porque la compu venía lenta.');
+      aviso('Simplifiqué las conexiones mientras el cerebro gira porque la compu venía lenta.', NO_BAJAR);
       pedirDibujo();
       return;
     }
     const conResplandor = anim.resplandor && neuronasGL && neuronasGL.brillo;
     const conEnfoque = anim.enfoque && camara.dof > 0.05;
     if (conResplandor || conEnfoque) {
+      if (!anim.lucesEnDuda) {
+        anim.lucesEnDuda = true;
+        return;
+      }
+      anim.lucesEnDuda = false;
       anim.resplandor = false;
       anim.enfoque = false;
       anim.bajadas.push('luces');
       aviso(conResplandor && conEnfoque ? 'Apagué el resplandor y el desenfoque de la cámara porque la compu venía lenta.'
-        : conResplandor ? 'Apagué el resplandor porque la compu venía lenta.' : 'Apagué el desenfoque de la cámara porque la compu venía lenta.');
+        : conResplandor ? 'Apagué el resplandor porque la compu venía lenta.' : 'Apagué el desenfoque de la cámara porque la compu venía lenta.', NO_BAJAR);
       pedirDibujo();
       return;
     }
     anim.nivel = 1;
     anim.bajadas.push('nivel');
-    aviso('Bajé las animaciones porque la compu venía lenta. Si se recupera, las vuelvo a subir solo.');
+    aviso('Bajé las animaciones porque la compu venía lenta. Si se recupera, las vuelvo a subir solo.', NO_BAJAR);
     aplicarModo();
   }
 
@@ -256,7 +298,7 @@
     anim.escala = 0.5;
     anim.masivoForzado = true;
     anim.bajadas = ['aristas', 'luces', 'nivel', 'masivo', 'resolucion'];
-    aviso('La compu dibuja muy lento: bajé la resolución y los efectos, y mientras no pasa nada el cerebro se queda quieto. Si mejora, los vuelvo a subir solo.');
+    aviso('La compu dibuja muy lento: bajé la resolución y los efectos, y mientras no pasa nada el cerebro se queda quieto. Si mejora, los vuelvo a subir solo.', NO_BAJAR);
     aplicarModo();
     ajustarLienzo();
   }
