@@ -95,6 +95,17 @@ def revisar_cerebro(datos):
            "salía antes dicho en general o dentro de una ruta de afuera, apuntaba a ese renglón, que estaba bien)",
            repetido.posiciones == [cuerpo.index("el CLAUDE") + 3, None]
            and [h["linea"] for h in medico.regla_ambiguas(en_su_renglon)] == [4], repetido.posiciones)
+    cabeza = "---\nname: a\ndescription: \"ver D:\\\\x\\\\CLAUDE.md y el CLAUDE.md\"\n---\n"
+    cuerpo_b = "# A\n\nCada CLAUDE.md sirve.\nLeé el CLAUDE.md.\n"
+    en_la_descripcion = types.SimpleNamespace(
+        ambiguos=[{"de": "a", "mencion": "CLAUDE.md", "candidatos": ["x", "y"]}],
+        por_id={"a": {"id": "a", "ruta": "/notas/a.md", "_cuerpo": cuerpo_b, "_cabeza": cabeza,
+                      "_desfase": cabeza.count("\n")}, "x": {"ruta": "/x/CLAUDE.md"}, "y": {"ruta": "/y/CLAUDE.md"}})
+    probar("una mención ambigua en la descripción de la nota sale en el renglón de la descripción, no en el primero "
+           "del cuerpo que nombra lo mismo, y salta la ruta completa de ese renglón (antes mandaba a corregir un renglón "
+           "que estaba bien)",
+           [h["linea"] for h in medico.regla_ambiguas(en_la_descripcion)] == [3],
+           [h["linea"] for h in medico.regla_ambiguas(en_la_descripcion)])
     probar("la página recibe del config el usuario, los proyectos y el lóbulo de cada grupo",
            datos.get("usuario") == "Ana" and [p["alias"] for p in datos.get("proyectos", [])] == ["demo"]
            and {g["id"]: g.get("lobulo") for g in datos.get("grupos", [])}.get("memoria") == "temporal",

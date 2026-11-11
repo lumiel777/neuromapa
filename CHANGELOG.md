@@ -3,6 +3,12 @@
 Las versiones siguen el número de `.claude-plugin/plugin.json` (`claude plugin list` lo muestra, y Claude lo ve con `neuromapa --version`). Cada versión que
 sale sube ese número; si no, la actualización puede no traer nada (ver [CONTRIBUTING.md](CONTRIBUTING.md)).
 
+## 0.1.10
+
+- `--salud` marca en la descripción una mención ambigua que está en la descripción de la nota (por ejemplo, «CLAUDE.md»
+  sin carpeta cuando hay varios). Antes la buscaba en el cuerpo y señalaba el primer renglón que nombraba lo mismo,
+  aunque ese estuviera bien escrito, así que mandaba a corregir un renglón correcto.
+
 ## 0.1.9
 
 - El cerebro ya no se pone opaco solo. La página tiene un piloto que, si cree que la compu va lenta, apaga el

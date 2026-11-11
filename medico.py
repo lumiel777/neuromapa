@@ -892,8 +892,18 @@ def regla_ambiguas(cerebro):
             continue
         mencion = str(x.get("mencion") or "")
         posicion = x.get("posicion")
-        if not isinstance(posicion, int) or not 0 <= posicion < len(nota["_cuerpo"]):
-            posicion = nota["_cuerpo"].find(mencion) if mencion else -1
+        linea = None
+        if isinstance(posicion, int) and 0 <= posicion < len(nota["_cuerpo"]):
+            linea = linea_en(nota, posicion)
+        elif mencion:
+            cabeza = nota.get("_cabeza", "")
+            suelta = re.search(r"(?<![\w\\/.])" + re.escape(mencion), cabeza)
+            en_cabeza = suelta.start() if suelta else -1
+            if en_cabeza >= 0:
+                linea = cabeza.count("\n", 0, en_cabeza) + 1
+            else:
+                posicion = nota["_cuerpo"].find(mencion)
+                linea = linea_en(nota, posicion) if posicion >= 0 else None
         rutas = [cerebro.por_id[c]["ruta"] for c in x.get("candidatos") or () if c in cerebro.por_id]
         if len(rutas) == 1:
             texto = (f"Menciona {citar(mencion, LARGO_CITA)} sin ruta; la única nota con ese nombre está en otra carpeta "
@@ -902,7 +912,7 @@ def regla_ambiguas(cerebro):
             cuales = ", ".join(rutas[:3]) + (f" y {len(rutas) - 3} más" if len(rutas) > 3 else "")
             texto = (f"Menciona {citar(mencion, LARGO_CITA)} sin ruta, y hay {len(rutas)} notas con ese nombre "
                      f"({cuales}).")
-        salida.append(hallazgo("ambigua", nota["id"], linea_en(nota, posicion) if posicion >= 0 else None, "aviso",
+        salida.append(hallazgo("ambigua", nota["id"], linea, "aviso",
                                texto, "Poner la carpeta en la mención o en el mismo renglón; si es un archivo cualquiera "
                                       "con ese nombre, decirlo así («un progreso.md»)."))
     return salida
