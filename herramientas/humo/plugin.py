@@ -235,6 +235,10 @@ def revisar_plugin(t):
            and apunte == str(datos_inicio)
            and "CLAUDE_PLUGIN_OPTION_CARPETA_DATOS" in entorno_bash.read_text(encoding="utf-8"),
            ([r.stdout for r in arranques], apunte))
+    probar("dos arranques dejan una sola línea en el archivo de entorno (Claude Code lo mete en cada comando de "
+           "Bash y Git Bash corta a ~8 KB: repetida en cada arranque o compactación, rompía Bash en sesiones largas)",
+           entorno_bash.read_text(encoding="utf-8").count("CLAUDE_PLUGIN_OPTION_CARPETA_DATOS") == 1,
+           entorno_bash.read_text(encoding="utf-8"))
     revisar_instalacion_doble(t, base)
     sh = buscar_sh()
     lanzador = str(CARPETA / "scripts" / "python.sh")
