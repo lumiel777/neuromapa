@@ -32,8 +32,17 @@ def main():
             return
         destino = os.environ.get("CLAUDE_ENV_FILE", "").strip()
         if destino:
-            with open(destino, "a", encoding="utf-8", newline="\n") as f:
-                f.write("export CLAUDE_PLUGIN_OPTION_CARPETA_DATOS='" + carpeta.replace("'", "'\\''") + "'\n")
+            # Una sola vez por archivo: Claude Code mete este archivo en cada comando de Bash, y repetida en cada
+            # arranque o compactación la línea lo hacía crecer hasta pasar el tope de ~8 KB de Git Bash en Windows.
+            linea = "export CLAUDE_PLUGIN_OPTION_CARPETA_DATOS='" + carpeta.replace("'", "'\\''") + "'\n"
+            try:
+                with open(destino, encoding="utf-8") as f:
+                    ya_esta = linea in f.read()
+            except OSError:
+                ya_esta = False
+            if not ya_esta:
+                with open(destino, "a", encoding="utf-8", newline="\n") as f:
+                    f.write(linea)
         mensajes = []
         if una_vez(carpeta, BIENVENIDA):
             mensajes.append(TEXTO_BIENVENIDA)
