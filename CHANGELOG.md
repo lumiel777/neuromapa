@@ -3,6 +3,72 @@
 Las versiones siguen el número de `.claude-plugin/plugin.json` (`claude plugin list` lo muestra, y Claude lo ve con `neuromapa --version`). Cada versión que
 sale sube ese número; si no, la actualización puede no traer nada (ver [CONTRIBUTING.md](CONTRIBUTING.md)).
 
+## 0.1.11
+
+Esta versión sale del estudio de graphify v8: seguridad primero, después un médico más fino, la pista, el mapa de
+código en más lenguajes y dos vistas nuevas.
+
+**Seguridad**
+
+- Una ruta de red escrita en una nota (`[x](//otra-pc/c/x.md)`, `[[//otra-pc/c/x]]` o `%2F%2F…`) ya no hace que
+  Windows se conecte a esa máquina. Antes, al revisar los enlaces de una nota recién editada, Windows podía
+  entregarle a la otra máquina la huella de la contraseña de la cuenta, sin que nadie hiciera nada.
+- Las skills `/neuromapa:sobre` y `/neuromapa:abrir` ya no pegan lo que se les pasa adentro de un comando: un tema
+  con comillas o `$(…)` ya no puede correr otra cosa.
+- En Linux y Mac, el lanzador ya no corre un `python` plantado en la carpeta de trabajo aunque el PATH tenga «.».
+- Lo que Neuromapa le pasa a Claude tapa lo que tiene forma de clave y desarma las marcas que la IA puede leer como
+  del sistema (`</system-reminder>`, `<|…|>`, `[INST]`) cuando vienen en el texto citado de una nota. También en la
+  pista de Claude, no solo en la de Codex.
+- Topes de tamaño: una nota de más de 16 MB no se lee entera (`--salud` dice cuál), un pedido de hook de más de 64 MB
+  se ignora y lo que dice un hook no pasa los 10.000 caracteres que Claude Code deja leer.
+- En Linux y Mac, una nota con un salto de renglón en el nombre ya no entra a la pista, donde podía parecer otro
+  renglón.
+
+**El médico, más fino**
+
+- Una sola regla para los bloques de código, la de CommonMark: cierra solo el mismo carácter, igual de largo o más.
+  Antes cualquier ``` abría o cerraba, y un título o un enlace podían quedar del lado equivocado.
+- Un solo lector de enlaces: en Linux y Mac, un enlace con la ruta completa a una nota del mapa ahora conecta.
+- Enlaces de referencia (`[texto][d]` con `[d]: nota.md` abajo): conectan y el médico los revisa.
+- Anclas `archivo:línea` con un nombre repetido: si git sigue uno solo de los archivos con ese nombre, el ancla va a
+  ese. En una memoria grande pasó de revisar 2.219 anclas a 4.663, y aparecen anclas corridas que antes no veía.
+- C# sin modificadores (`void Foo()`), propiedades y `record` cuentan como declaraciones.
+- Nuevas reglas: «para mañana», «ayer» o «la semana que viene» sin fecha en una memoria de hace días, y un CLAUDE.md
+  de subcarpeta de más de 40.000 caracteres (Claude Code lo corta ahí).
+- Sin `config.json`, también lee la memoria de los subagentes (`~/.claude/agent-memory/`) y la carpeta movida con
+  `autoMemoryDirectory`.
+- «## Clases de C#» ya no queda «Clases de C»; un encabezado `---` tiene que cerrar en 200 renglones; `\\?\C:\…` es
+  una ruta local; una mención pegada desde una Mac (acentos descompuestos) conecta.
+
+**La pista y el conector**
+
+- El conector MCP ya no se traba mientras se rearma el índice: contesta con el anterior y avisa.
+- `sobre` del conector acepta `carpeta` (prioriza las notas de ese proyecto) y `todo` (no corta). `leer_nota` corta
+  a 20.000 caracteres, dice desde qué línea seguir y lee una sección por su título.
+- Cuando la respuesta se corta, dice cuántos renglones faltan y que `--todo` los muestra.
+- `--charlas`, `--historial`, `--cambios`, `--pendientes` y otras consultas ya se cuentan y salen en vivo.
+
+**El mapa de código**
+
+- `--mapa` entiende C#, C/C++, Java, TypeScript (con JSX), Kotlin, Go, Rust y PHP, además de HTML, JavaScript, CSS
+  y Python, sin instalar nada: tapa comentarios y textos, toma una rama de cada `#if` y sigue las llaves.
+- `--entidad Clase.Metodo`: dónde está una función o clase en el código de los proyectos, quién la llama (lo seguro
+  aparte de lo probable, sin adivinar tipos) y qué notas la nombran.
+
+**La página**
+
+- Vista **Resumen**, al lado de Grafo y Lista: un círculo por grupo (o por proyecto), del tamaño de sus notas, y una
+  línea por cada par que se conecta. Clic en uno para verlo solo en el grafo.
+- Las conexiones que Neuromapa deduce del texto (Mención, Carpeta) van punteadas, como las otras deducidas; las que
+  se escribieron siguen llenas.
+
+**Por dentro**
+
+- Los procesos de fondo ya no abren una ventana vacía en Windows 11 con Terminal.
+- Dos hooks a la vez ya no lanzan dos rearmados del índice.
+- Un evento con el registro ocupado ya no se pierde: queda en `en-vivo/pendientes/` y el siguiente lo suma.
+- El servidor avisa cuando cambia el `config.json` (hay que abrirlo de nuevo).
+
 ## 0.1.10
 
 - `--salud` marca en la descripción una mención ambigua que está en la descripción de la nota (por ejemplo, «CLAUDE.md»

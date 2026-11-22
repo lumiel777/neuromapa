@@ -1,3 +1,5 @@
+import builtins
+
 from humo.base import *
 
 
@@ -13,6 +15,8 @@ def revisar_acentos(t):
     (boveda / "Canción.md").write_text("# Canción\n\nDel vivero.\n", encoding="utf-8")
     (boveda / "Origen.md").write_text("# Origen\n\nVer [[Café]] y [[" + nfd("Canción") + "]].\n", encoding="utf-8")
     (boveda / "Otra.md").write_text("# Otra\n\nVer [la del café](Caf%C3%A9.md).\n", encoding="utf-8")
+    (boveda / "Mencion.md").write_text("# Mención\n\nLo cuenta " + nfd("Canción.md") + ", pegado desde una Mac.\n",
+                                       encoding="utf-8")
     (mundo / "config.json").write_text(json.dumps({"usuario": "Ana", "fuentes": [
         {"id": "boveda", "nombre": "Bóveda", "color": "#228BE6", "raices": [[str(boveda), True, ""]]}]},
         ensure_ascii=False), encoding="utf-8")
@@ -26,6 +30,136 @@ def revisar_acentos(t):
            "enlace compuesto, o al revés) lleva a su nota, como en Obsidian, también en un enlace Markdown",
            destinos == [("Origen.md", "wiki", "Café.md"), ("Origen.md", "wiki", "Canción.md"),
                         ("Otra.md", "enlace", "Café.md")] and not rotos, (destinos, rotos, salida[-300:]))
+    menciones = sorted(nombre.get(a["a"]) for a in datos.get("aristas", [])
+                       if nombre.get(a["de"]) == "Mencion.md" and a["clase"] == "mencion")
+    ids = [n["id"] for n in datos.get("nodos", [])]
+    probar("una mención escrita descompuesta (texto pegado desde una Mac) también lleva a su nota, y el nombre de cada "
+           "nota en el mapa sale compuesto (si no, la misma memoria en Mac y en Windows perdía lo aprendido)",
+           menciones == ["Canción.md"] and ids and all(i == unicodedata.normalize("NFC", i) for i in ids), (menciones, ids))
+
+
+def revisar_detalles_de_lectura(t):
+    seccion("Detalles de lectura (títulos con #, encabezados largos, rutas en otra unidad)")
+    import ordenar
+    titulos = [nucleo.RE_ENCABEZADO.match(x).group(2) for x in ("## Clases de C#", "### Plan ##", "## F# y C#  #")]
+    probar("un título que termina en C# o F# conserva el #, y el cierre «##» con espacio antes se saca (antes «Clases de "
+           "C#» quedaba «Clases de C»)", titulos == ["Clases de C#", "Plan", "F# y C#"], titulos)
+    largo = "---\n" + "Estado: hecho\n" * (nucleo.TOPE_FRONTMATTER + 5) + "---\n\nEl cuerpo.\n"
+    datos, cuerpo = nucleo.separar_frontmatter(largo)
+    probar("un documento que empieza con una raya --- y tiene otra mucho más abajo no pierde ese tramo como si fuera el "
+           "encabezado (el encabezado tiene que cerrar en 200 renglones)", datos == {} and cuerpo == largo
+           and ordenar.fin_de_cabeza(largo.split("\n")) == 0, (datos, len(cuerpo)))
+    casos = {"````\n```\n# Adentro uno\n```\n````\n# Afuera uno": ["Afuera uno"],
+             "```python``` en un renglón\n# Afuera dos": ["Afuera dos"],
+             "~~~\n```\n# Adentro tres\n~~~\n# Afuera tres": ["Afuera tres"],
+             "```\n# Adentro cuatro\n``` y sigue\n# Adentro cinco\n```\n# Afuera seis": ["Afuera seis"]}
+    vistos = {texto: [s["titulo"] for s in nucleo.seccionar(texto) if s["titulo"]] for texto in casos}
+    tramos = nucleo.tramos_de_codigo("````\n```\nadentro\n```\n````\nafuera [[x]]")
+    probar("un bloque de código cierra solo con el mismo carácter, igual de largo o más y sin nada después, y "
+           "«```código```» en un renglón no abre un bloque (antes cualquier ``` abría o cerraba, y un título o un enlace "
+           "quedaban del lado equivocado); el médico, la pista, --partir y --pendientes usan la misma regla",
+           vistos == casos and len(tramos) == 1 and not nucleo.en_codigo(tramos, 30), (vistos, tramos))
+    try:
+        relativa = ordenar.ruta_relativa(Path("D:/notas/b.md"), Path("C:/x")) if os.name == "nt" else "D:/notas/b.md"
+    except ValueError as error:
+        relativa = str(error)
+    probar("--partir con el destino en otra unidad no revienta: el enlace va con la ruta entera",
+           relativa == "D:/notas/b.md", relativa)
+
+
+def revisar_enlace_con_ruta_completa(t):
+    seccion("Un enlace con la ruta completa a una nota del mapa")
+    mundo = t / "ruta-completa"
+    notas = mundo / "notas"
+    (notas / "sub").mkdir(parents=True)
+    (mundo / "en-vivo").mkdir()
+    destino = notas / "sub" / "Destino.md"
+    destino.write_text("# Destino\n", encoding="utf-8")
+    (notas / "Origen.md").write_text(f"# Origen\n\nVer [el destino]({destino.as_posix()}).\n", encoding="utf-8")
+    (notas / "Otra nota.md").write_text("# Otra nota\n", encoding="utf-8")
+    (notas / "Referencias.md").write_text(
+        "# Referencias\n\nVer [el destino][d], [Otra][] y [la que falta][Falta].\n\n```\n[en código][d]\n```\n\n"
+        "[d]: sub/Destino.md\n[otra]: <Otra nota.md>\n[falta]: no-existe.md\n[sin usar]: tampoco-existe.md\n",
+        encoding="utf-8")
+    (mundo / "config.json").write_text(json.dumps({"usuario": "Ana", "fuentes": [
+        {"id": "notas", "nombre": "Notas", "color": "#228BE6", "raices": [[str(notas), True, ""]]}]},
+        ensure_ascii=False), encoding="utf-8")
+    codigo, salida = cerebro_en(mundo, "--salida", str(mundo / "mapa.html"), "--json", str(mundo / "mapa.json"))
+    datos = json.loads((mundo / "mapa.json").read_text(encoding="utf-8")) if codigo == 0 else {}
+    nombre = {n["id"]: Path(n["ruta"]).name for n in datos.get("nodos", [])}
+    enlaces = sorted((nombre.get(a["de"]), nombre.get(a["a"])) for a in datos.get("aristas", []) if a["clase"] == "enlace")
+    probar("un enlace con la ruta completa de una nota del mapa la conecta también en Linux y Mac (antes solo dejaba de "
+           "salir roto; en Windows, con la unidad, ya conectaba)", ("Origen.md", "Destino.md") in enlaces,
+           (enlaces, salida[-300:]))
+    rotos = sorted(r.get("destino") for r in datos.get("salud", {}).get("rotos", []))
+    de_referencias = sorted(b for a, b in enlaces if a == "Referencias.md")
+    probar("los enlaces de referencia ([texto][d], [Otra][] con [d]: nota.md abajo, sin importar mayúsculas) conectan, "
+           "el que lleva a una nota que no existe sale roto, y ni el de un bloque de código ni una definición sin usar "
+           "cuentan", de_referencias == ["Destino.md", "Otra nota.md"] and rotos == ["no-existe.md"],
+           (de_referencias, rotos))
+
+
+def revisar_tiempo_relativo(t):
+    seccion("Fechas relativas («ayer», «mañana») en notas viejas")
+    nota = t / "memoria" / "con-fechas-relativas.md"
+    nota.write_text(frontmatter("con-fechas-relativas", "Nota vieja con fechas relativas para la prueba", "project")
+                    + "Para mañana: rehacer los arreglos.\n\nLeí un error viejo como si fuera de\nayer.\n\n"
+                    + "El texto de la app dice `vuelve\nmañana` y está bien.\n\nEl 20/11 quedó para mañana.\n\n"
+                    + "Una mañana de lluvia.\n\nMostraba tomorrow's forecast.\n", encoding="utf-8")
+    viejo = time.time() - 3 * 86400
+    os.utime(nota, (viejo, viejo))
+    try:
+        cerebro = armar_cerebro(t)
+        avisos = [h for h in medico.regla_tiempo_relativo(cerebro) if cerebro.por_id[h["nota"]]["ruta"] == str(nota)]
+    finally:
+        nota.unlink()
+    probar("en una nota de hace días, «para mañana» sin fecha queda para revisar; «como si fuera de ayer», un texto "
+           "entre comillas invertidas, un renglón con fecha, «una mañana» y «tomorrow's» no",
+           [h["linea"] for h in avisos] == [9]
+           and "«mañana»" in avisos[0]["texto"].lower(), avisos)
+
+
+def revisar_simbolos(t):
+    seccion("Funciones y clases como entidades (--entidad Clase.Metodo)")
+    import simbolos
+    usa = t / "proyecto" / "codigo" / "Usa.cs"
+    usa.write_text("namespace Demo\n{\n    public class Caja\n    {\n        public bool Cobrar(Login login)\n        {\n"
+                   "            if (Login.ValidarClave(\"x\")) { return true; }\n            return login.ValidarClave(\"y\");\n"
+                   "        }\n    }\n}\n", encoding="utf-8")
+    try:
+        cerebro = armar_cerebro(t)
+        lineas = simbolos.texto_simbolo(cerebro, "ValidarClave") or []
+        ninguna = simbolos.texto_simbolo(cerebro, "NoExisteEnNingunLado")
+    finally:
+        usa.unlink()
+    texto = "\n".join(lineas)
+    probar("--entidad con una función dice dónde está (archivo y renglones), quién la llama de forma segura "
+           "(Login.ValidarClave desde Caja.Cobrar), aparte las probables desde otra variable, y qué notas la nombran",
+           "Login.cs:7-" in texto and "Login.ValidarClave" in texto and "lo seguro: 1 llamada" in texto
+           and "en Caja.Cobrar" in texto and "Probables" in texto and "arreglo-login.md" in texto and ninguna is None,
+           texto[-900:])
+    probar("una consulta con forma de archivo, commit o tabla no se toma por una función",
+           not simbolos.es_simbolo("riego.py ya") and simbolos.es_simbolo("GameClient.Send") == ("GameClient", "Send")
+           and simbolos.es_simbolo("Clase::Metodo()") == ("Clase", "Metodo") and not simbolos.es_simbolo("if"))
+
+
+def revisar_gemelas(t):
+    seccion("Dos notas que solo cambian en mayúsculas (Linux)")
+    mundo = t / "gemelas"
+    boveda = mundo / "notas"
+    boveda.mkdir(parents=True)
+    (mundo / "en-vivo").mkdir()
+    (boveda / "Plan.md").write_text("# Plan grande\n", encoding="utf-8")
+    (boveda / "plan.md").write_text("# plan chico\n", encoding="utf-8")
+    if len(list(boveda.iterdir())) < 2:
+        saltear("dos notas que solo cambian en mayúsculas: este disco no las distingue, salteado")
+        return
+    (mundo / "config.json").write_text(json.dumps({"usuario": "Ana", "fuentes": [
+        {"id": "notas", "nombre": "Notas", "color": "#228BE6", "raices": [[str(boveda), True, ""]]}]},
+        ensure_ascii=False), encoding="utf-8")
+    codigo, salida = cerebro_en(mundo, "--salud")
+    probar("de dos notas que solo cambian en mayúsculas, --salud dice cuál quedó afuera (antes se salteaba callada)",
+           codigo in (0, 1) and "solo cambia en mayúsculas" in salida, salida[-400:])
 
 
 def revisar_enlace_afuera(t):
@@ -371,26 +505,189 @@ def revisar_rutas_temporales(t):
            "temporal" not in tramos[0] and "se borró ayer" in tramos[1] and "se movió" not in tramos[2], tramos)
 
 
+NOTA_CON_RED = ("Enlaces: [a](//red.invalid/c/a.md), [b](\\\\red.invalid\\c\\b.md), [[//red.invalid/c/w]], "
+                "[d](%2F%2Fred.invalid%2Fc%2Fd.md), [e](<//red.invalid/c/e.md>), [f](\\\\?\\UNC\\red.invalid\\c\\f.md).\n\n"
+                "Código: `\\\\red.invalid\\c\\x.cs:10`, `//red.invalid/c/y.py:3`, \\\\red.invalid\\c\\z.md y "
+                "`\\\\?\\UNC\\red.invalid\\c\\q.md`.\n")
+
+
+@contextlib.contextmanager
+def espia_de_red(tocadas):
+    def de_red(ruta):
+        try:
+            texto = os.fspath(ruta)
+        except TypeError:
+            return False
+        if isinstance(texto, bytes):
+            texto = texto.decode(errors="replace")
+        return texto.strip().replace("/", "\\").startswith("\\\\")
+
+    def envolver(modulo, nombre, respuesta):
+        original = getattr(modulo, nombre)
+
+        def espia(ruta, *a, **k):
+            if not de_red(ruta):
+                return original(ruta, *a, **k)
+            tocadas.append(f"{nombre}({os.fspath(ruta)})")
+            if respuesta is OSError:
+                raise FileNotFoundError(ruta)
+            return respuesta(ruta) if callable(respuesta) else respuesta
+
+        return modulo, nombre, original, espia
+
+    cambios = [envolver(os.path, n, False) for n in ("exists", "isfile", "isdir", "lexists", "islink")]
+    cambios += [envolver(os.path, n, 0) for n in ("getmtime", "getsize")]
+    cambios += [envolver(os.path, "realpath", os.fspath), envolver(os, "listdir", lambda r: [])]
+    cambios += [envolver(m, n, OSError) for m, n in ((os, "stat"), (os, "lstat"), (os, "scandir"), (builtins, "open"))]
+    for modulo, nombre, _, espia in cambios:
+        setattr(modulo, nombre, espia)
+    try:
+        yield
+    finally:
+        for modulo, nombre, original, _ in cambios:
+            setattr(modulo, nombre, original)
+
+
+def revisar_semillas(t):
+    seccion("La misma respuesta con cualquier semilla de Python (cada hook arranca con otra)")
+    sin_tiempos = lambda texto: re.sub(r"\d+(?:,\d+)? (?:ms|s)\b", "", texto)
+    distintas = []
+    for opciones in (["--sobre", "validación de la clave del login"], ["--salud", "--todo"],
+                     ["--parecidas", "La validación de la clave fallaba con espacios al final"]):
+        salidas = {sin_tiempos(correr([str(CARPETA / "cerebro.py"), *opciones], espera=300, PYTHONHASHSEED=s).stdout)
+                   for s in ("1", "2", "3")}
+        if len(salidas) != 1:
+            distintas.append(opciones[0])
+    probar("--sobre, --salud y --parecidas dan lo mismo con tres semillas distintas (un empate decidido por el orden "
+           "de un set cambiaba la pista de un pedido a otro)", not distintas, distintas)
+
+
+def revisar_candado_ocupado(t):
+    seccion("Un evento con el registro tomado por otro (CandadoOcupado)")
+    import archivos
+    if not archivos.hay_candados():
+        saltear("el candado del registro: este sistema no tiene candados de archivo, salteado")
+        return
+    registro = Path(hook_evento.REGISTRO)
+    antes = registro.read_bytes() if registro.exists() else b""
+    evento = lambda n: {"t": round(time.time(), 3), "s": "candado1", "e": "post", "h": "Read", "k": "leer", "n": n}
+    tomado = archivos.tomar_candado(hook_evento.CANDADO)
+    try:
+        perdidos = []
+        for n in (1, 2):
+            try:
+                hook_evento.escribir_evento(evento(n), 0)
+            except hook_evento.CandadoOcupado:
+                perdidos.append(n)
+        en_espera = sorted(os.listdir(hook_evento.PENDIENTES))
+        sin_tocar = (registro.read_bytes() if registro.exists() else b"") == antes
+    finally:
+        archivos.soltar_candado(tomado)
+    hook_evento.escribir_evento(evento(3))
+    nuevos = [json.loads(r) for r in (registro.read_bytes()[len(antes):]).decode("utf-8").splitlines() if r.strip()]
+    quedan = os.listdir(hook_evento.PENDIENTES)
+    probar("si otro tiene el registro, el evento queda en en-vivo\\pendientes (antes se perdía) y el siguiente que entra "
+           "los suma en orden antes del suyo y los borra",
+           not perdidos and len(en_espera) == 2 and all(n.endswith(".jsonl") for n in en_espera) and sin_tocar
+           and [e["n"] for e in nuevos] == [1, 2, 3] and not quedan, (perdidos, en_espera, nuevos, quedan))
+    tope, hook_evento.TOPE_PENDIENTES = hook_evento.TOPE_PENDIENTES, 1
+    tomado = archivos.tomar_candado(hook_evento.CANDADO)
+    try:
+        hook_evento.escribir_evento(evento(4), 0)
+        try:
+            hook_evento.escribir_evento(evento(5), 0)
+            lleno = False
+        except hook_evento.CandadoOcupado:
+            lleno = True
+    finally:
+        archivos.soltar_candado(tomado)
+        hook_evento.TOPE_PENDIENTES = tope
+    hook_evento.escribir_evento(evento(6))
+    probar("si quedaron demasiados pendientes (el candado trabado para siempre), deja de juntarlos y avisa como antes",
+           lleno and not os.listdir(hook_evento.PENDIENTES), lleno)
+
+
+def revisar_procesos_de_fondo(t):
+    seccion("Procesos de fondo (rearmar el índice, la pasada de cada noche)")
+    import procesos
+    marca = t / "de-fondo.txt"
+    proceso = procesos.lanzar_de_fondo([sys.executable, "-c", f"open({str(marca)!r}, 'w').write('corrio')"])
+    proceso.wait(60)
+    con_detached = sorted(p.name for p in CARPETA.glob("*.py") if "DETACHED_PROCESS" in p.read_text(encoding="utf-8"))
+    probar("un proceso de fondo corre sin consola visible y nada lo lanza con DETACHED_PROCESS (en Windows 11 con "
+           "Terminal, un hijo de un proceso sin consola abría una ventana vacía)",
+           marca.is_file() and marca.read_text(encoding="utf-8") == "corrio" and not con_detached, con_detached)
+
+
+def revisar_topes_de_tamano(t):
+    seccion("Topes de tamaño (una nota gigante o un pedido de hook enorme no traban nada)")
+    import hooks_comun
+    gigante = t / "memoria" / "gigante.md"
+    gigante.write_text("# Gigante\n\n" + "renglón de relleno\n" * 200, encoding="utf-8")
+    tope, nucleo.TOPE_NOTA = nucleo.TOPE_NOTA, 1000
+    try:
+        cerebro = armar_cerebro(t)
+    finally:
+        nucleo.TOPE_NOTA = tope
+        gigante.unlink()
+    saltada = [r for r in cerebro.no_leidos if "gigante.md" in r]
+    probar("una nota que pasa el tope no se lee entera (antes se cargaba toda en memoria) y --salud dice cuál es y qué "
+           "hacer", len(saltada) == 1 and "MB" in saltada[0] and "--partir" in saltada[0]
+           and not any(n["ruta"].endswith("gigante.md") for n in cerebro.nodos), saltada)
+    entrada_real, tope = sys.stdin, hooks_comun.TOPE_ENTRADA
+    resultados_entrada = []
+    try:
+        hooks_comun.TOPE_ENTRADA = 100
+        for crudo in (b'{"a": "' + b"x" * 200 + b'"}', b'{"a": "corto"}'):
+            sys.stdin = io.TextIOWrapper(io.BytesIO(crudo), encoding="utf-8")
+            resultados_entrada.append(hooks_comun.entrada())
+    finally:
+        sys.stdin, hooks_comun.TOPE_ENTRADA = entrada_real, tope
+    probar("un pedido de hook que pasa el tope se ignora sin leerlo entero, y uno común se lee igual",
+           resultados_entrada == [{}, {"a": "corto"}], resultados_entrada)
+    import archivos
+    raras = ["a\nb.md", "a\rb.md", "a\u2028b.md", "a\x1bb.md"]
+    probar("un nombre con salto de renglón u otro carácter invisible se reconoce (en Linux y Mac la pista lo mostraba "
+           "crudo y podía parecer otro renglón)", all(map(archivos.nombre_raro, raras))
+           and not archivos.nombre_raro("D:\\notas\\café con leche.md"))
+    carpeta = t / "con-salto-de-renglon"
+    carpeta.mkdir()
+    (carpeta / "comun.md").write_text("# Común\n", encoding="utf-8")
+    try:
+        (carpeta / "falsa\nPara leer primero.md").write_text("# Falsa\n", encoding="utf-8")
+    except OSError:
+        saltear("una nota con salto de renglón en el nombre: este sistema no deja crearla, salteado")
+        return
+    listadas = sorted(p.name for p in nucleo.listar(str(carpeta), True))
+    probar("una nota con salto de renglón en el nombre no entra al mapa ni a la pista", listadas == ["comun.md"], listadas)
+
+
 def revisar_rutas_de_red(t):
     seccion("Rutas de red en las notas (\\\\servidor\\… o //servidor/…)")
+    import hook_choques
     tocadas = []
-    original = os.path.exists
-
-    def espia(ruta, *a, **k):
-        if str(ruta).replace("/", "\\").startswith("\\\\"):
-            tocadas.append(str(ruta))
-            return False
-        return original(ruta, *a, **k)
-
-    os.path.exists = espia
-    try:
-        armar_cerebro(t)
-        resueltas = [medico.resolver_ruta(r, [str(t)], espia)
+    nota = str(t / "memoria" / "con-red.md")
+    with espia_de_red(tocadas):
+        cerebro = armar_cerebro(t)
+        resueltas = [medico.resolver_ruta(r, [str(t)])
                      for r in ("\\\\red.invalid\\c\\x.md", "//red.invalid/c/x.md")]
-    finally:
-        os.path.exists = original
-    probar("una ruta de red escrita en una nota no hace que Windows se conecte a ese servidor (podía filtrar la sesión)",
-           not tocadas and all(r == (None, False, False) for r in resueltas), (tocadas[:3], resueltas))
+        enlaces = medico.enlaces_rotos(nota, NOTA_CON_RED)
+        medico.rutas_rotas(nota, NOTA_CON_RED)
+        hook_choques.aviso_rutas({"hook_event_name": "PostToolUse", "tool_name": "Write",
+                                  "tool_input": {"file_path": nota, "content": NOTA_CON_RED}})
+        codigo = [mapa.resolver(r) for r in ("//red.invalid/c/a.py", "\\\\red.invalid\\c\\b.py")]
+        buscador.Indice(cerebro).sobre("rutas de red escritas en el índice")
+        cabeza = buscador.cabeza_git("\\\\red.invalid\\c")
+    probar("una ruta de red escrita en una nota no hace que Windows se conecte a ese servidor (podía filtrar la sesión): "
+           "ni al armar el mapa, ni el médico, ni el aviso del hook al editar, ni el mapa de código, ni la pista",
+           not tocadas and all(r == (None, False, False) for r in resueltas) and codigo == [None, None]
+           and cabeza is None and len(enlaces) == 0, (tocadas[:4], resueltas, codigo, enlaces))
+    import archivos
+    formas = {"\\\\?\\C:\\notas\\a.md": False, "//?/C:/notas/a.md": False, "\\\\.\\D:\\x.md": False,
+              "\\\\?\\UNC\\host\\c\\a.md": True, "\\\\.\\pipe\\x": True, "\\\\host\\c": True, "C:\\notas": False}
+    mal = {r: e for r, e in formas.items() if archivos.es_de_red(r) != e}
+    probar("\\\\?\\C:\\… y \\\\.\\D:\\… son rutas locales (antes salían como de red y el enlace, roto); \\\\?\\UNC\\…, "
+           "\\\\.\\pipe\\… y \\\\host\\… siguen sin tocarse", not mal, mal)
     delicadas = t / "raiz-con-delicadas"
     for relativa in ("riego.md", ".env.md", "id_rsa.md", ".ssh/claves.md", "docs/.aws/zonas.md", "docs/sensor.md"):
         (delicadas / relativa).parent.mkdir(parents=True, exist_ok=True)

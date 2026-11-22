@@ -112,12 +112,129 @@ def revisar_cerebro(datos):
            {k: datos.get(k) for k in ("usuario", "proyectos")})
 
 
+MUESTRA_CS = """using System;
+namespace Juego.Servidor
+{
+    [Serializable]
+    public partial class Tienda : Base, IVende
+    {
+        private readonly List<uint> precios = new List<uint>() { 1, 2, 3 };
+        public int Vida { get; set; }
+        public string Nombre => nombre;
+        public int Doble(int x) => x * 2;
+        public Tienda(int a) : base(a)
+        {
+            var texto = "una { llave } suelta";
+            var ruta = @"C:\\{carpeta}";
+            // un comentario con }
+            Task.Run(() => { Vender(1); });
+            var p = new Punto { X = 1 };
+        }
+#if VIEJO
+        void Vender(int id, bool viejo) {
+#else
+        void Vender(int id)
+        {
+#endif
+            if (id > 0) { return; }
+        }
+        public static Tienda operator +(Tienda a, Tienda b) { return a; }
+        private class Interna
+        {
+            async Task<int> Contar<T>(T x) where T : class
+            {
+                return 1;
+            }
+        }
+    }
+    public record Pedido(int Id);
+}
+"""
+MUESTRA_CPP = """#include <vector>
+#if 0
+void Apagada() {
+#endif
+namespace motor {
+class Ventana : public Base {
+public:
+    Ventana(int a) : ancho{a}, alto(2) { Abrir(); }
+    void Abrir() const { auto f = [](int x) { return x; }; }
+    ~Ventana() {}
+private:
+    int ancho, alto;
+};
+template <typename T>
+T Mayor(T a, T b) { return a > b ? a : b; }
+}
+void motor::Ventana::Cerrar(int codigo)
+{
+    const char* r = R"(un { raro })";
+    __try { Cerrar(1); }
+    __except (EXCEPTION_EXECUTE_HANDLER) { }
+}
+extern "C" void Initialize()
+{
+}
+int main(int argc,
+         char** argv)
+{
+    return 0;
+}
+"""
+
+
+def revisar_resumen_y_deducidas(html):
+    seccion("La vista Resumen y las conexiones deducidas")
+    clases = {c: re.search(c + r": \{[^}]*guion: (null|\[[^\]]*\])", html) for c in ("wiki", "enlace", "indice", "mencion", "carpeta")}
+    guiones = {c: m.group(1) if m else None for c, m in clases.items()}
+    probar("lo que Neuromapa deduce del texto (Mención, Carpeta) va punteado y lo escrito (Enlace [[…]], Enlace, Índice) "
+           "va lleno", guiones["wiki"] == guiones["enlace"] == guiones["indice"] == "null"
+           and guiones["mencion"] not in (None, "null") and guiones["carpeta"] not in (None, "null"), guiones)
+    probar("la página trae la vista Resumen (un círculo por grupo con las conexiones entre ellos) con su botón y su lugar",
+           'data-vista="resumen"' in html and 'id="resumen"' in html and "function renderResumen" in html
+           and "function abrirGrupoDelResumen" in html)
+
+
 def revisar_mapa(t):
     seccion("Mapa de código (--mapa)")
     for archivo, esperados in (("muestra.js", {"sumar", "restar", "Caja"}), ("muestra.py", {"uno", "Dos"})):
         armado = mapa.armar(t / archivo)
         nombres = {b.nombre for b in armado[1]} if armado else set()
         probar(f'{archivo}: encuentra {", ".join(sorted(esperados))}', esperados <= nombres, nombres)
+    (t / "Muestra.cs").write_text(MUESTRA_CS, encoding="utf-8")
+    (t / "muestra.cpp").write_text(MUESTRA_CPP, encoding="utf-8")
+    vistos = {}
+    for archivo in ("Muestra.cs", "muestra.cpp"):
+        armado = mapa.armar(t / archivo)
+        vistos[archivo] = sorted((b.inicio, b.fin, b.tipo, b.nombre, b.padre.nombre if b.padre else "")
+                                 for b in armado[1]) if armado else None
+    esperado_cs = [(5, 35, "clase", "Tienda", ""), (8, 8, "propiedad", "Vida", "Tienda"),
+                   (9, 9, "propiedad", "Nombre", "Tienda"), (10, 10, "metodo", "Doble", "Tienda"),
+                   (11, 18, "metodo", "Tienda", "Tienda"), (20, 26, "metodo", "Vender", "Tienda"),
+                   (27, 27, "metodo", "operator+", "Tienda"), (28, 34, "clase", "Interna", "Tienda"),
+                   (30, 33, "metodo", "Contar", "Interna")]
+    esperado_cpp = [(6, 13, "clase", "Ventana", ""), (8, 8, "metodo", "Ventana", "Ventana"),
+                    (9, 9, "metodo", "Abrir", "Ventana"), (10, 10, "metodo", "~Ventana", "Ventana"),
+                    (15, 15, "funcion", "Mayor", ""), (17, 22, "metodo", "motor::Ventana::Cerrar", ""),
+                    (23, 25, "funcion", "Initialize", ""), (26, 30, "funcion", "main", "")]
+    probar("C#: clases, métodos, constructor con base, propiedades, miembros «=>», operadores, clases adentro y genéricos; "
+           "ni las llaves de textos y comentarios, ni lambdas, inicializadores o ifs cuentan, y de un #if/#else queda la "
+           "primera rama", vistos["Muestra.cs"] == esperado_cs, vistos["Muestra.cs"])
+    probar("C++: clases, constructor con lista de inicialización con llaves, destructor, plantillas, Clase::Metodo fuera de "
+           "la clase, extern \"C\" y firmas en varios renglones; #if 0, textos crudos, lambdas y __except no cuentan",
+           vistos["muestra.cpp"] == esperado_cpp, vistos["muestra.cpp"])
+    from humo.muestras_codigo import ESPERADOS, MUESTRAS
+    distintos = {}
+    for archivo, texto in MUESTRAS.items():
+        (t / archivo).write_text(texto, encoding="utf-8")
+        armado = mapa.armar(t / archivo)
+        visto = sorted((b.inicio, b.fin, b.tipo, b.nombre, b.padre.nombre if b.padre else "")
+                       for b in armado[1]) if armado else None
+        if visto != ESPERADOS[archivo]:
+            distintos[archivo] = visto
+    probar("Java, TypeScript (con JSX, tipos y expresiones regulares), Kotlin, Go, Rust y PHP: clases, métodos y funciones "
+           "con su dueño y su renglón de inicio y fin; las llaves de textos, plantillas, heredoc, tipos, lambdas y "
+           "callbacks no cuentan", not distintos and len(MUESTRAS) == 6, distintos)
 
 
 def buscar_chrome():

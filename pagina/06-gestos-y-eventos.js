@@ -1578,7 +1578,7 @@
 
   let vistaGuardada = null;
   try { vistaGuardada = localStorage.getItem('cerebro-vista'); } catch (e) {}
-  cambiarVista(vistaGuardada === 'lista' ? 'lista' : 'grafo', true);
+  cambiarVista(vistaGuardada === 'lista' || vistaGuardada === 'resumen' ? vistaGuardada : 'grafo', true);
 
   const inicial = leerHash();
   if (inicial && porId.has(inicial)) irA(inicial, true, true);

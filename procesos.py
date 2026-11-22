@@ -26,6 +26,15 @@ def cortar(proceso):
         pass
 
 
+def lanzar_de_fondo(argumentos):
+    opciones = {"stdin": subprocess.DEVNULL, "stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL}
+    if WINDOWS:
+        opciones["creationflags"] = subprocess.CREATE_NO_WINDOW | subprocess.CREATE_NEW_PROCESS_GROUP
+    else:
+        opciones["start_new_session"] = True
+    return subprocess.Popen(argumentos, **opciones)
+
+
 def correr(orden, timeout, input=None, capture_output=False, **opciones):
     if capture_output:
         opciones["stdout"] = opciones["stderr"] = subprocess.PIPE

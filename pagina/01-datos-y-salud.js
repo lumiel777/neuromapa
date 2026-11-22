@@ -63,8 +63,8 @@
     indice: { nombre: 'Índice', ayuda: 'Un MEMORY.md lista esta nota', ancho: 0.9, alfa: 0.4, guion: null, tinta: 'linea', distancia: 70, fuerza: 0.35 },
     enlace: { nombre: 'Enlace', ayuda: 'Enlace de Markdown: [texto](archivo.md)', ancho: 1.5, alfa: 0.6, guion: null, tinta: 'linea', distancia: 60, fuerza: 0.5 },
     responde: { nombre: 'Responde', ayuda: 'Un handoff responde a otro (lo dice su cabecera)', ancho: 1.2, alfa: 0.55, guion: null, tinta: 'linea', distancia: 20, fuerza: 0.9 },
-    mencion: { nombre: 'Mención', ayuda: 'El texto nombra a la otra nota por ruta o por nombre', ancho: 0.7, alfa: 0.22, guion: null, tinta: 'linea', distancia: 95, fuerza: 0.12 },
-    carpeta: { nombre: 'Carpeta', ayuda: 'La nota cita un archivo de la carpeta de este LEEME', ancho: 0.6, alfa: 0.2, guion: null, tinta: 'linea', distancia: 100, fuerza: 0.1 },
+    mencion: { nombre: 'Mención', ayuda: 'El texto nombra a la otra nota por ruta o por nombre (la deduce Neuromapa: va punteada)', ancho: 0.7, alfa: 0.22, guion: [3, 3], tinta: 'linea', distancia: 95, fuerza: 0.12 },
+    carpeta: { nombre: 'Carpeta', ayuda: 'La nota cita un archivo de la carpeta de este LEEME (la deduce Neuromapa: va punteada)', ancho: 0.6, alfa: 0.2, guion: [2, 4], tinta: 'linea', distancia: 100, fuerza: 0.1 },
     cadena: { nombre: 'Cadena', ayuda: 'Sigue al anterior (el handoff no dice a quién responde)', ancho: 1, alfa: 0.45, guion: [2, 3], tinta: 'linea', distancia: 16, fuerza: 1 },
     sugerida: { nombre: 'Sugerida', ayuda: 'Conexión que convendría agregar', ancho: 1.6, alfa: 0.85, guion: [6, 4], tinta: 'acento', distancia: 80, fuerza: 0.05, debil: true },
     parecida: { nombre: 'Parecida', ayuda: 'Hablan de lo mismo y ninguna nombra a la otra (detectado por el texto)', ancho: 1.1, alfa: 0.5, guion: [2, 4], tinta: 'acento', distancia: 90, fuerza: 0.03, debil: true, sinCuenta: true },
@@ -360,7 +360,8 @@
     'Memorias parecidas': 'Memoria parecida a otra', 'Se alcanzan desde otra nota del índice': 'Se alcanza desde otra nota del índice',
     'Notas fuera del cerebro': 'Nota fuera del cerebro', 'Anclas corridas': 'Ancla corrida', 'Cifras de control': 'Cifra de control',
     'Handoffs sin respuesta': 'Handoff sin respuesta', 'Respuestas sin acuse': 'Respuesta sin acuse',
-    'Copias de conflicto': 'Copia de conflicto'
+    'Copias de conflicto': 'Copia de conflicto', 'Fechas relativas': 'Fecha relativa',
+    'CLAUDE.md que se cortan': 'CLAUDE.md que se corta'
   };
   const nombreSalud = (nombre, n) => n === 1 && EN_SINGULAR[nombre] ? EN_SINGULAR[nombre] : nombre;
   const GRUPOS_MEDICO = {
@@ -373,6 +374,8 @@
     noEntraEnRead: 'No entran en un Read',
     ficha: 'Ficha incompleta',
     cifras: 'Cifras que no coinciden',
+    tiempoRelativo: 'Fechas relativas',
+    claudeLargo: 'CLAUDE.md que se cortan',
     probadoOSinProbar: '¿Probado o sin probar?',
     repiteClaude: 'Repite CLAUDE.md',
     memoriasParecidas: 'Memorias parecidas',
@@ -544,6 +547,7 @@
     tooltip._nodo = null;
     if (estado.seleccionado) panel.style.setProperty('--c-panel', colorDe(estado.seleccionado));
     if (estado.vista === 'lista') renderLista();
+    if (estado.vista === 'resumen') renderResumen();
     pedirDibujo();
   }
 
@@ -724,6 +728,8 @@
     'medico-huellaProbable': ['Algo citado como commit que parece la huella de un archivo.', ''],
     'medico-yaResuelto': ['Un problema anotado que quizás arregló un commit posterior.', ''],
     'medico-cifras': ['Una misma nota da dos números distintos para lo mismo.', ''],
+    'medico-tiempoRelativo': ['Una nota de hace días dice «ayer» o «mañana» sin la fecha: ya no se sabe qué día era.', ''],
+    'medico-claudeLargo': ['Un CLAUDE.md de subcarpeta tan largo que Claude Code lo corta y el final no llega.', ''],
     'medico-probadoOSinProbar': ['Una nota dice que algo está sin probar y otra, que ya se probó.', ''],
     'medico-memoriasParecidas': ['Dos memorias que hablan de lo mismo y ninguna nombra a la otra.', ''],
     'medico-presupuestoIndice': ['Cuánto ocupa MEMORY.md de lo que Claude lee al arrancar.', ''],
@@ -1109,6 +1115,7 @@
     ordenarResultados();
     renderResultados();
     if (estado.vista === 'lista') renderLista();
+    if (estado.vista === 'resumen') renderResumen();
     actualizarContador();
     actualizarBandaLocal();
     pedirDibujo();

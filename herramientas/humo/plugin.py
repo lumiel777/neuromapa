@@ -69,6 +69,55 @@ def revisar_opciones_nombradas(t):
            (faltan, len(consola), len(documentos), len(nombradas)))
 
 
+NO_SON_CONSULTAS = {"--al", "--aplicar", "--chequeo", "--confirmar", "--cuantos", "--demo", "--descartar",
+                    "--descartar-aviso", "--descripcion", "--destino", "--dormir", "--gancho", "--help", "--json",
+                    "--motivo", "--mover", "--olvidar", "--partir", "--partir-llenas", "--plantilla", "--por-partir",
+                    "--recuperar-aviso", "--regla", "--renombrar", "--salida", "--sugerencias", "--titulo", "--todo",
+                    "--version"}
+SOLO_PARA_LA_RESPUESTA = {"aprender", "hooks_comun", "permisos", "procesos", "vigencia"}
+
+
+def revisar_tablas_espejo(t):
+    seccion("Las listas que se repiten en dos lugares coinciden")
+    import ast
+    import registro
+    consola = set(RE_OPCION.findall(correr([str(CARPETA / "cerebro.py"), "--help"]).stdout))
+    consultas = {f"--{o}" for o in registro.OPCIONES_CONSULTA}
+    sin_decidir = sorted(consola - consultas - NO_SON_CONSULTAS)
+    probar("cada opción de la consola está decidida: cuenta como consulta al cerebro (registro.OPCIONES_CONSULTA, lo que "
+           "ve el panel en vivo) o no; y cada consulta existe (--charlas, --historial y --cambios se habían quedado "
+           "afuera desde octubre)", not sin_decidir and consultas <= consola, (sin_decidir, sorted(consultas - consola)))
+    locales = {p.stem for p in CARPETA.glob("*.py")}
+    arbol = ast.parse((CARPETA / "buscador.py").read_text(encoding="utf-8"))
+    usados = {a.name.split(".")[0] for n in ast.walk(arbol) if isinstance(n, ast.Import) for a in n.names}
+    usados |= {n.module.split(".")[0] for n in ast.walk(arbol) if isinstance(n, ast.ImportFrom) and n.module}
+    vigilados = {m[:-3] for m in buscador.MODULOS_DEL_INDICE}
+    faltan = sorted((usados & locales) - vigilados - SOLO_PARA_LA_RESPUESTA - {"buscador"})
+    probar("cada módulo que usa el buscador está en MODULOS_DEL_INDICE (si cambia, el índice guardado se rearma) o "
+           "anotado como que solo toca la respuesta (consultas.py faltaba: cambiaba a qué proyecto va cada nota)",
+           not faltan and all((CARPETA / m).is_file() for m in buscador.MODULOS_DEL_INDICE), faltan)
+
+
+def revisar_argumentos_de_skills(t):
+    seccion("Lo que el usuario le pasa a una skill no entra pegado en un comando")
+    pegados = []
+    skills = sorted((CARPETA / "skills").glob("*/SKILL.md"))
+    for archivo in skills:
+        en_bloque = False
+        for n, renglon in enumerate(archivo.read_text(encoding="utf-8").split("\n"), 1):
+            if renglon.lstrip().startswith("```"):
+                en_bloque = not en_bloque
+                continue
+            if "$ARGUMENTS" not in renglon:
+                continue
+            en_codigo = any("$ARGUMENTS" in tramo for tramo in renglon.split("`")[1::2])
+            if en_bloque or en_codigo or "neuromapa" in renglon:
+                pegados.append(f"{archivo.parent.name}:{n}")
+    probar("ninguna skill pega $ARGUMENTS dentro de un comando (un tema con comillas o $(…) salía de las comillas y "
+           "corría otra cosa, con permiso de las allowed-tools): va aparte, como dato",
+           not pegados and len(skills) >= 3, (pegados, len(skills)))
+
+
 def revisar_dos_consolas(t, sh, base, comandos):
     raiz = t / "raiz con espacio"
     (raiz / "scripts").mkdir(parents=True)
@@ -285,6 +334,18 @@ def revisar_plugin(t):
         probar("el «python» de la tienda de Windows (que no es Python) no hace decir «es más viejo», sino que no hay",
                tienda.returncode == 1 and "no lo encontré".encode("utf-8") in tienda.stderr
                and "más viejo".encode("utf-8") not in tienda.stderr, (tienda.returncode, tienda.stderr[-200:]))
+        plantado = t / "repo-ajeno"
+        plantado.mkdir()
+        (plantado / "python-plantado").write_text("#!/bin/sh\necho corrio > corrio.txt\necho True\n", encoding="utf-8",
+                                                  newline="\n")
+        os.chmod(plantado / "python-plantado", 0o755)
+        relativo = subprocess.run([sh, lanzador, "--consola", "-c", "print(1)"], capture_output=True, timeout=60,
+                                  cwd=str(plantado), env=dict(base, NEUROMAPA_PYTHONS="python-plantado",
+                                                              PATH="." + os.pathsep + base.get("PATH", "")))
+        probar("un «python» plantado en la carpeta de trabajo no se corre aunque el PATH tenga «.» (en Linux y Mac un "
+               "repo ajeno podía hacer correr el suyo, ya al probar la versión)",
+               not (plantado / "corrio.txt").exists() and relativo.returncode == 1,
+               (relativo.stdout, relativo.stderr[-200:]))
         recuerdos = t / "datos-lanzador"
         recuerdos.mkdir()
         python_txt = recuerdos / "python.txt"

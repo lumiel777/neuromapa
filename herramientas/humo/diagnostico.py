@@ -306,6 +306,45 @@ def revisar_medico(cerebro, con_git):
     adentro_afuera = [codigo.declarada_arriba(d, ("palabra", "larga"), n) for d in (py, js) for n in (35, 46)]
     probar("en Python y JavaScript, una línea adentro de una función larga es de esa función, y afuera no",
            adentro_afuera == [True, False, True, False], adentro_afuera)
+    declaraciones = {"    void Interno(int a = 1)": ("Interno", True), "    int Vida { get; set; }": ("Vida", False),
+                     "    public string Nombre => nombre;": ("Nombre", False), "    int Doble(int x) => x * 2;": ("Doble", True),
+                     "    record struct Punto(int X, int Y);": ("Punto", False),
+                     "    private static async Task<int> Bajar<T>(T x) where T : class": ("Bajar", True),
+                     "    return Foo(x);": None, "    else if (a)": None, "    var y = Calcular(3);": None,
+                     "    catch (Exception e)": None, "    yield return Bar(x);": None, "    Console.WriteLine(x);": None,
+                     "namespace Juego {": None, "    get { return x; }": None, "    int x = Bar(1);": None}
+    vistas = {linea: medico.Codigo.declarado(linea, "cs") for linea in declaraciones}
+    probar("en C#, un método sin modificador (void Foo()), una propiedad y un record cuentan como declaraciones, y una "
+           "llamada, un if, un catch, un return o una asignación no", vistas == declaraciones,
+           {k: v for k, v in vistas.items() if v != declaraciones[k]})
+    raiz = nucleo.RAICES_PROYECTO[0][0] if nucleo.RAICES_PROYECTO else str(nucleo.configuracion.carpeta_de_claude())
+    largas = [{"id": "sub", "ruta": os.path.join(raiz, "modulo", "CLAUDE.md"), "_cuerpo": "x" * 40001},
+              {"id": "raiz", "ruta": os.path.join(raiz, "CLAUDE.md"), "_cuerpo": "x" * 40001},
+              {"id": "corta", "ruta": os.path.join(raiz, "otro", "CLAUDE.md"), "_cuerpo": "x" * 100}]
+    marcadas = [h["nota"] for h in medico.regla_claude_de_subcarpeta(types.SimpleNamespace(nodos=largas))]
+    probar("un CLAUDE.md de subcarpeta de más de 40.000 caracteres es un aviso (Claude Code lo corta ahí y el final no "
+           "llega); el de la raíz del proyecto y uno corto no", marcadas == ["sub"], marcadas)
+    gemelos = Path(tempfile.mkdtemp(prefix="cerebro-gemelos-"))
+    for carpeta in ("src", "copia vieja"):
+        (gemelos / carpeta).mkdir(parents=True)
+        (gemelos / carpeta / "Util.cs").write_text("class Util {}\n", encoding="utf-8")
+    con_git = correr_git_de_prueba(gemelos, "init", "-q") and correr_git_de_prueba(gemelos, "add", "src/Util.cs")
+    if not con_git:
+        saltear("el desempate de anclas por git: no hay git, salteado")
+    else:
+        raices_reales = medico.raices_de_codigo
+        medico.raices_de_codigo = lambda base: [{"ruta": str(gemelos), "marca": None}]
+        try:
+            elegidas = medico.Codigo().resolver("demo", "", "Util", "cs", "", str(gemelos / "nota.md"))
+            correr_git_de_prueba(gemelos, "add", "copia vieja/Util.cs")
+            las_dos = medico.Codigo().resolver("demo", "", "Util", "cs", "", str(gemelos / "nota.md"))
+        finally:
+            medico.raices_de_codigo = raices_reales
+            borrar_carpeta(gemelos)
+        probar("un ancla a un nombre repetido (Util.cs en dos carpetas) va al único que sigue git (antes quedaba ambigua y "
+               "el médico no la revisaba: en una memoria real eran 3.065 de 5.535 anclas); si los dos lo "
+               "siguen, sigue ambigua", elegidas == [str(gemelos / "src" / "Util.cs")] and len(las_dos) == 2,
+               (elegidas, las_dos))
     graves = [h for h in hallazgos if h["tono"] == "peligro"]
     probar("ningún hallazgo grave inesperado", not graves, graves)
     texto = "\n".join(medico.informe(cerebro, hallazgos, 30, 0.1))

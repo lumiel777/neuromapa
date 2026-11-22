@@ -6,7 +6,7 @@ from collections import Counter
 from pathlib import Path
 
 import cerebro as nucleo
-from textos import cantidad, detalle, recortar, sin_wiki
+from textos import cantidad, detalle, recortar, sin_wiki, tapar_cercos
 
 VIEJO = 14
 LARGO = 170
@@ -17,7 +17,6 @@ TODOS = ("todos", "todo", "all")
 RE_CORTE = re.compile(r"(?<=[.;!?])[ \t]+|\n[ \t]*\n|\n(?=[ \t]*(?:[-*+]|\d{1,3}[.)])[ \t])|\n(?=#{1,6}[ \t])")
 RE_COMIENZO = re.compile(r"[\s\-*+#>\d.)\[\]]*")
 RE_TACHADO = re.compile(r"~~.*?~~", re.S)
-RE_CERCO = re.compile(r"^ {0,3}(```|~~~).*?^ {0,3}\1[ \t]*$", re.M | re.S)
 RE_CERRADO = re.compile(r"\bhech[oa]s?\b|\bresuelt[oa]s?\b|\barreglad[oa]s?\b|\blist[oa]s?\b|✅|\bdone\b|\bfixed\b|\bsolved\b", re.I)
 SIN_FALTA = "".join(f"(?<!{antes} )(?<!{antes.capitalize()} )" for antes in (
     "hace", "hacen", "hacía", "hacia", "hizo", "haga", "hagan", "sin", "no", "la", "por", "una", "ni", "nunca", "le",
@@ -62,7 +61,7 @@ def frases_de(cuerpo):
 def tapado(cuerpo):
     def blanco(m):
         return re.sub(r"[^\n]", " ", m.group(0))
-    return RE_TACHADO.sub(blanco, RE_CERCO.sub(blanco, cuerpo))
+    return RE_TACHADO.sub(blanco, tapar_cercos(cuerpo))
 
 
 def de_la_nota(nodo, hoy):

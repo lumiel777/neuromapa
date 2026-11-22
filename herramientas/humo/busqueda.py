@@ -79,12 +79,24 @@ def revisar_indice_guardado(t):
             marca.write_text("1\n", encoding="utf-8")
             os.utime(marca, (time.time() + adelanto,) * 2)
             con_marca.append(buscador.rearmar_de_fondo(ruta))
+        marca.unlink(missing_ok=True)
+        antes = len(lanzados)
+        juntos = []
+        hilos = [threading.Thread(target=lambda: juntos.append(buscador.rearmar_de_fondo(ruta))) for _ in range(6)]
+        for hilo in hilos:
+            hilo.start()
+        for hilo in hilos:
+            hilo.join()
+        de_a_varios = len(lanzados) - antes
     finally:
         subprocess.Popen = lanzar
         marca.unlink(missing_ok=True)
+    probar("seis pedidos a la vez sin índice lanzan un solo rearmado (la marca se toma de forma exclusiva; antes dos hooks "
+           "podían ver la marca vieja al mismo tiempo y lanzar dos)", juntos.count(True) == 1 and de_a_varios == 1,
+           (juntos, de_a_varios))
     probar("una marca de rearmado apenas en el futuro (en Windows, el reloj de Python 3.10 va a saltos de ~15 ms) cuenta "
            "como recién puesta y no rearma dos veces; una de una hora en el futuro (reloj atrasado) no traba",
-           con_marca == [False, True] and len(lanzados) == 1, (con_marca, len(lanzados)))
+           con_marca == [False, True] and antes == 1, (con_marca, antes))
     probar("si no hay índice que sirva (la primera vez o después de actualizar), el hook lo manda a armar de fondo y "
            "sigue sin pista, en vez de armarlo adentro (con memorias grandes chocaba con el tope de 10 s y el índice no "
            "se guardaba nunca)", sin_indice is None and tardo < 3 and pista is None and len(llamadas) >= 2,

@@ -4,7 +4,6 @@ import json
 import math
 import os
 import re
-import subprocess
 import sys
 import time
 from collections import Counter
@@ -14,7 +13,7 @@ import archivos
 import cerebro as nucleo
 import permisos
 from archivos import escribir_atomico
-from textos import cantidad, citar, decimal, sin_marcas
+from textos import Cercos, cantidad, citar, decimal, sin_marcas
 
 K1 = 1.2
 B = 0.75
@@ -75,6 +74,8 @@ LEER_PRIMERO = 4
 ARCHIVO_PRIMERO = 1
 ARCHIVO_ARRIBA = 2
 TOPE_SOBRE = 40
+AVISO_INDICE_VIEJO = ("(Sale del índice anterior: algunas notas cambiaron y se está rearmando de fondo; lo más nuevo "
+                      "puede faltar.)")
 
 RE_PALABRA = re.compile(r"\w+")
 RE_ENLACE = re.compile(r"\[\[[^\]\n]*\]\]|\[[^\]\n]*\]\([^)\n]*\)")
@@ -178,7 +179,7 @@ REARMANDO = "rearmando-indice.txt"
 ESPERA_REARMADO = 120
 VERSION_INDICE = 6
 MODULOS_DEL_INDICE = ("cerebro.py", "buscador.py", "medico.py", "configuracion.py", "textos.py", "archivos.py",
-                      "entidades.py", "donde.py", "fichas.py")
+                      "entidades.py", "donde.py", "fichas.py", "consultas.py")
 _formas_de = {}
 
 
@@ -458,14 +459,13 @@ def pasajes_de(seccion):
     lineas = seccion["texto"].split("\n")
     if not LARGO_PASAJE or len(seccion["texto"]) <= LARGO_PASAJE:
         return [seccion]
-    cortes, acumulado, en_codigo = [0], 0, False
+    cortes, acumulado, cercos = [0], 0, Cercos()
     for i, linea in enumerate(lineas):
-        if i > cortes[-1] and not en_codigo and acumulado >= LARGO_PASAJE \
+        if i > cortes[-1] and not cercos.marca and acumulado >= LARGO_PASAJE \
                 and (not lineas[i - 1].strip() or RE_ITEM_RAIZ.match(linea)):
             cortes.append(i)
             acumulado = 0
-        if linea.lstrip().startswith(("```", "~~~")):
-            en_codigo = not en_codigo
+        cercos.paso(linea)
         acumulado += len(linea) + 1
     if len(cortes) > 1 and acumulado < LARGO_PASAJE / 3:
         cortes.pop()
@@ -549,6 +549,8 @@ def avisos_del_medico(cerebro):
 
 
 class Indice:
+    viejo = False
+
     def __init__(self, cerebro, avisos=None):
         comienzo = time.perf_counter()
         self.notas = []
@@ -1240,6 +1242,7 @@ class Indice:
             "leerPrimero": leer,
             "decisiones": self.decisiones(final, mapa, rareza),
             "comprobar": comprobar,
+            "viejo": self.viejo,
         }
 
     def puntaje_de_una_rara(self):
@@ -1276,7 +1279,8 @@ class Indice:
             if len(salida) >= COMPROBAR_APRENDIDO:
                 break
             nombre = ruta.replace("\\", "/").rsplit("/", 1)[-1]
-            if nombre.lower() in nombres or archivos.es_sensible(ruta) or not os.path.isfile(ruta) or lejos(ruta):
+            if nombre.lower() in nombres or archivos.es_sensible(ruta) or archivos.nombre_raro(ruta) \
+                    or not archivos.archivo_local(ruta) or lejos(ruta):
                 continue
             salida.append({"archivo": memoria.aprendido.corto(b), "ruta": semilla, "linea": None, "abrir": ruta})
         return salida
@@ -1388,6 +1392,8 @@ class Indice:
 
 
 def cabeza_git(repo):
+    if archivos.es_de_red(repo):
+        return None
     git = nucleo.Path(repo) / ".git"
     try:
         cabeza = (git / "HEAD").read_text(encoding="utf-8").strip()
@@ -1433,21 +1439,35 @@ def ruta_del_indice():
     return nucleo.DATOS / "en-vivo" / INDICE_GUARDADO
 
 
+def tomar_marca(marca):
+    for _ in range(2):
+        try:
+            descriptor = os.open(marca, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        except FileExistsError:
+            try:
+                if archivos.reciente(marca.stat().st_mtime, ESPERA_REARMADO):
+                    return False
+                marca.unlink()
+            except FileNotFoundError:
+                pass
+            except OSError:
+                return False
+            continue
+        except OSError:
+            return False
+        with os.fdopen(descriptor, "w", encoding="utf-8") as f:
+            f.write(f"{int(time.time())}\n")
+        return True
+    return False
+
+
 def rearmar_de_fondo(ruta):
     marca = ruta.parent / REARMANDO
+    if not tomar_marca(marca):
+        return False
     try:
-        if archivos.reciente(marca.stat().st_mtime, ESPERA_REARMADO):
-            return False
-    except OSError:
-        pass
-    try:
-        marca.write_text(f"{int(time.time())}\n", encoding="utf-8")
-        opciones = {"stdin": subprocess.DEVNULL, "stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL}
-        if os.name == "nt":
-            opciones["creationflags"] = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
-        else:
-            opciones["start_new_session"] = True
-        subprocess.Popen([sys.executable, os.path.abspath(__file__), "--rearmar"], **opciones)
+        import procesos
+        procesos.lanzar_de_fondo([sys.executable, os.path.abspath(__file__), "--rearmar"])
     except OSError:
         return False
     return True
@@ -1493,7 +1513,10 @@ def desde_disco(guardado=True, esperar=True, hasta=None):
     if guardado and not esperar:
         indice = indice_guardado(ruta, llave, viejo=True)
         rearmar_de_fondo(ruta)
-        return indice if indice is not None else esperar_indice(ruta, llave, hasta)
+        if indice is not None:
+            indice.viejo = True
+            return indice
+        return esperar_indice(ruta, llave, hasta)
     cerebro = nucleo.desde_disco()
     indice = Indice(cerebro, avisos_del_medico(cerebro))
     base = base_del_indice(llave)
@@ -1629,6 +1652,8 @@ def texto_sobre(resultado, tope=TOPE_SOBRE):
     else:
         cabeza += "ningún renglón las nombra: van las notas que las tienen en el título o la descripción"
     lineas = [f'{cabeza} ({str(resultado["ms"]).replace(".", ",")} ms).']
+    if resultado.get("viejo"):
+        lineas.append(AVISO_INDICE_VIEJO)
     lineas.extend(texto_correccion(resultado))
     if not resultado["terminos"]:
         lineas.append("La consulta no tiene palabras para buscar.")
@@ -1648,7 +1673,7 @@ def texto_sobre(resultado, tope=TOPE_SOBRE):
     if resultado.get("comprobar"):
         cola.append(TITULO_COMPROBAR)
         cola.extend(lineas_comprobar(resultado["comprobar"]))
-    lugar = tope - len(lineas) - len(cola)
+    lugar = tope - len(lineas) - len(cola) if tope is not None else None
     cuerpo = []
     for grupo in resultado["grupos"]:
         cuerpo.append(f'== {grupo["nombre"]}')
@@ -1658,8 +1683,10 @@ def texto_sobre(resultado, tope=TOPE_SOBRE):
             for p in nota["pasajes"]:
                 cuerpo.append(f'    :{p["linea"]}  {citar(p["texto"])}')
                 cuerpo += [aviso_suelto(aviso) for aviso in p.get("avisos", ())]
-    if len(cuerpo) > lugar:
-        cuerpo = cuerpo[:max(0, lugar - 1)] + ["  … (hay más; la página o /sobre los muestra todos)"]
+    if tope is not None and len(cuerpo) > lugar:
+        quedan = len(cuerpo) - max(0, lugar - 1)
+        cuerpo = cuerpo[:max(0, lugar - 1)] + [f"  … (faltan {quedan} renglones: con --todo en la consola, o «todo»: true "
+                                               "en el conector, salen todos)"]
     return lineas + cuerpo + cola
 
 
@@ -1669,7 +1696,7 @@ def responder(indice, consulta, sobre=False, todo=False, maximo=8, memoria=None,
         resultado = indice.sobre(consulta, grupos, memoria=memoria)
         if anotar is not None:
             anotar(resultado)
-        salida = texto_sobre(resultado)
+        salida = texto_sobre(resultado, None if todo else TOPE_SOBRE)
         citado = resultado["terminos"] and resultado["grupos"]
     else:
         resultado = indice.buscar(consulta, maximo, grupos)

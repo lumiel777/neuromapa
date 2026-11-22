@@ -356,8 +356,14 @@ def revisar_candado_posix(t):
         hook_evento.soltar_candado(ocupado)
     finally:
         archivos.msvcrt, archivos.fcntl, hook_evento.ESPERA_CANDADO = antes
-    probar("si el candado sigue ocupado, el evento no se escribe sin él ni se rota (así se perdía el 21 %): se descarta "
-           "y queda anotado como falla", descartado and despues == previo, (descartado, len(previo), len(despues)))
+    en_espera = [Path(hook_evento.PENDIENTES) / n for n in sorted(os.listdir(hook_evento.PENDIENTES))] \
+        if os.path.isdir(hook_evento.PENDIENTES) else []
+    guardado_aparte = [p.read_bytes() for p in en_espera]
+    for p in en_espera:
+        p.unlink()
+    probar("si el candado sigue ocupado, el evento no se escribe sin él ni se rota (así se perdía el 21 %): queda aparte "
+           "en en-vivo\\pendientes para el próximo que entre", not descartado and despues == previo
+           and guardado_aparte == [b'{"t":1}\r\n'], (descartado, len(previo), len(despues), guardado_aparte))
     guardado = registro.read_bytes() if registro.exists() else b""
     try:
         registro.write_bytes(guardado + b'{"t":1,"s":"cortado","e":"po')
@@ -607,6 +613,17 @@ def revisar_chequeo(t):
            puesto[0][0] == "bien" and a_medias[0][0] == "dato" and "conector" in a_medias[0][1]
            and clave not in repr(puesto + a_medias) and chequeo.revisar_codex(carpeta / "sin-codex") == [],
            (puesto, a_medias))
+    movido = str(carpeta / "neuromapa-viejo" / "conector_mcp.py")
+    (codex / "config.toml").write_text(f'api_key = "{clave}"\n\n[mcp_servers.neuromapa]\ncommand = "py"\n'
+                                       f'args = [{json.dumps(movido)}]\n\n[otra]\nx = "C:/no/importa.py"\n', encoding="utf-8")
+    perdido = chequeo.revisar_codex(codex)
+    (codex / "config.toml").write_text(f'[mcp_servers.neuromapa]\nargs = [{json.dumps(str(CARPETA / "conector_mcp.py"))}]\n',
+                                       encoding="utf-8")
+    existe = chequeo.revisar_codex(codex)
+    probar("si el conector de Codex apunta a un conector_mcp.py que ya no existe (Neuromapa se movió), el chequeo lo dice "
+           "en vez de darlo por puesto; con la ruta buena, no",
+           perdido[0][0] == "ojo" and "neuromapa-viejo" in perdido[0][1] and clave not in repr(perdido)
+           and existe[0][0] != "ojo", (perdido, existe))
     r = correr([str(CARPETA / "neuromapa.py"), "chequeo"], CEREBRO_CONFIG=str(t / "config.json"))
     probar("«neuromapa chequeo» corre entero con una instalación de prueba y termina con un resumen",
            r.returncode in (0, 1) and "revisión de la instalación" in r.stdout

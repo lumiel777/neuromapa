@@ -6,6 +6,7 @@ from collections import Counter
 
 CARPETA = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, CARPETA)
+import archivos
 import hooks_comun
 
 TOPE_LECTURA = 2 * 1024 * 1024
@@ -378,8 +379,8 @@ def aviso_nota(datos):
     cargadas = hooks_comun.ya_cargadas(cwd, configuracion.carpeta_de_claude())
     for _, b in candidatas:
         nota = aprendido.rutas.get(b, b)
-        if os.path.normcase(nota) in cargadas or os.path.normcase(os.path.realpath(nota)) in cargadas \
-                or not os.path.isfile(nota):
+        if archivos.es_de_red(nota) or archivos.nombre_raro(nota) or os.path.normcase(nota) in cargadas \
+                or os.path.normcase(os.path.realpath(nota)) in cargadas or not os.path.isfile(nota):
             continue
         if b in leidas:
             return None

@@ -13,9 +13,11 @@ CARPETA = Path(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, str(CARPETA))
 
 VERSIONES = ("2025-06-18", "2025-03-26", "2024-11-05")
-LARGO_NOTA = 60000
+LARGO_NOTA = 20000
 TOPE_CONSULTA = 300
 VIDA_INDICE = 60
+VIDA_INDICE_VIEJO = 5
+ESPERA_INDICE = 4.0
 ESPERA_CODE = 1.5
 MARGEN_CODE = 2.0
 MIRAR_CODE = 256 * 1024
@@ -27,7 +29,12 @@ HERRAMIENTAS = [
      "description": "Qué se sabe en las notas del usuario sobre un tema: qué notas leer primero (con el tramo de líneas), "
                     "las decisiones anotadas que lo tocan, los datos que pueden estar viejos y el código que nombran. Usala "
                     "antes de responder sobre un tema del que pueda haber notas.",
-     "inputSchema": {"type": "object", "properties": {"tema": {"type": "string", "description": "El tema, en pocas palabras"}},
+     "inputSchema": {"type": "object", "properties": {
+         "tema": {"type": "string", "description": "El tema, en pocas palabras"},
+         "carpeta": {"type": "string", "description": "La carpeta del proyecto en el que se trabaja: así prioriza sus notas "
+                                                      "y lo que se suele leer ahí"},
+         "todo": {"type": "boolean", "description": "true para que no corte la respuesta ni se quede en las notas del "
+                                                    "alcance común"}},
                      "required": ["tema"]}},
     {"name": "buscar",
      "description": "Busca palabras en las notas (tolera errores de tipeo) y devuelve las mejores, con el renglón donde aparecen.",
@@ -35,10 +42,13 @@ HERRAMIENTAS = [
                                                       "cuantas": {"type": "integer", "minimum": 1, "maximum": 20}},
                      "required": ["consulta"]}},
     {"name": "leer_nota",
-     "description": "Lee una nota que devolvieron «sobre» o «buscar», por su ruta: entera o un tramo de líneas.",
+     "description": "Lee una nota que devolvieron «sobre» o «buscar», por su ruta: entera, un tramo de líneas o una "
+                    "sección por su título. Si es larga, la corta y dice desde qué línea seguir.",
      "inputSchema": {"type": "object", "properties": {"ruta": {"type": "string"},
                                                       "desde": {"type": "integer", "minimum": 1},
-                                                      "hasta": {"type": "integer", "minimum": 1}},
+                                                      "hasta": {"type": "integer", "minimum": 1},
+                                                      "seccion": {"type": "string",
+                                                                  "description": "El título de una sección de la nota"}},
                      "required": ["ruta"]}},
     {"name": "avisar_charla",
      "description": "Para las charlas que Neuromapa no ve solo (el modo Chat de la app de escritorio de Claude, Codex): "
@@ -74,8 +84,13 @@ class MetodoDesconocido(Exception):
 
 def indice():
     import buscador
-    if _indice["valor"] is None or time.monotonic() - _indice["t"] > VIDA_INDICE:
-        _indice["valor"], _indice["t"] = buscador.desde_disco(), time.monotonic()
+    actual = _indice["valor"]
+    vida = VIDA_INDICE_VIEJO if actual is not None and actual.viejo else VIDA_INDICE
+    if actual is None or time.monotonic() - _indice["t"] > vida:
+        nuevo = buscador.desde_disco(esperar=False, hasta=time.monotonic() + ESPERA_INDICE)
+        if nuevo is None:
+            nuevo = buscador.desde_disco()
+        _indice["valor"], _indice["t"] = nuevo, time.monotonic()
     return _indice["valor"]
 
 
@@ -158,11 +173,34 @@ def entero_de(argumentos, campo, defecto, tope):
     return min(valor, tope)
 
 
+def carpeta_de(argumentos):
+    import archivos
+    valor = argumentos.get("carpeta")
+    if valor is None:
+        return None
+    if not isinstance(valor, str) or not valor.strip() or len(valor) > TOPE_CONSULTA or archivos.nombre_raro(valor):
+        raise PedidoInvalido("«carpeta» tiene que ser la ruta de la carpeta del proyecto")
+    ruta = os.path.abspath(valor.strip())
+    if archivos.es_de_red(ruta) or not os.path.isdir(ruta):
+        raise PedidoInvalido("«carpeta» tiene que ser una carpeta que exista en esta computadora")
+    return ruta
+
+
+def si_o_no(argumentos, campo):
+    valor = argumentos.get(campo, False)
+    if not isinstance(valor, bool):
+        raise PedidoInvalido(f"«{campo}» tiene que ser true o false")
+    return valor
+
+
 def sobre(argumentos):
+    import aprender_pista
     import buscador
-    resultado = indice().sobre(texto_de(argumentos, "tema"), buscador.ALCANCE)
+    tema, carpeta, todo = texto_de(argumentos, "tema"), carpeta_de(argumentos), si_o_no(argumentos, "todo")
+    memoria = aprender_pista.contexto(carpeta) if carpeta else None
+    resultado = indice().sobre(tema, None if todo else buscador.ALCANCE, memoria=memoria)
     anotar("sobre", "consulta", "sobre", [p["ruta"] for p in resultado.get("leerPrimero", [])])
-    return "\n".join(buscador.texto_sobre(resultado))
+    return "\n".join(buscador.texto_sobre(resultado, None if todo else buscador.TOPE_SOBRE))
 
 
 def buscar(argumentos):
@@ -181,19 +219,52 @@ def leer_nota(argumentos):
     nota = next((n for n in indice().notas if cerebro.normalizar(n["ruta"]) == clave), None)
     if nota is None or archivos.es_sensible(nota["ruta"]):
         raise PedidoInvalido("esa ruta no es una de las notas de Neuromapa (usá la que devolvió «sobre» o «buscar»)")
-    texto, _ = cerebro.leer_texto(Path(nota["ruta"]))
+    try:
+        texto, _ = cerebro.leer_texto(Path(nota["ruta"]))
+    except OSError as error:
+        raise PedidoInvalido(f"no pude leer esa nota ({error})")
     if texto is None:
         raise PedidoInvalido("no pude leer esa nota")
     lineas = texto.splitlines()
-    desde = entero_de(argumentos, "desde", 1, max(1, len(lineas)))
-    hasta = entero_de(argumentos, "hasta", None, len(lineas)) or len(lineas)
+    pedida = argumentos.get("seccion")
+    if pedida is not None:
+        desde, hasta = tramo_de_seccion(lineas, pedida)
+    else:
+        desde = entero_de(argumentos, "desde", 1, max(1, len(lineas)))
+        hasta = entero_de(argumentos, "hasta", None, len(lineas)) or len(lineas)
     if hasta < desde:
         raise PedidoInvalido("«hasta» tiene que ser mayor o igual que «desde»")
-    tramo = "\n".join(lineas[desde - 1:hasta])
-    cortada = len(tramo) > LARGO_NOTA
+    hasta = min(hasta, len(lineas))
+    entran, largo = desde - 1, 0
+    while entran < hasta and (largo + len(lineas[entran]) + 1 <= LARGO_NOTA or entran == desde - 1):
+        largo += len(lineas[entran]) + 1
+        entran += 1
     anotar("leer_nota", "leer", ruta=nota["ruta"])
-    cabeza = f'{nota["ruta"]} (líneas {desde} a {min(hasta, len(lineas))} de {len(lineas)})'
-    return cabeza + "\n\n" + tramo[:LARGO_NOTA] + ("\n\n[cortada: pedí un tramo con «desde» y «hasta»]" if cortada else "")
+    cabeza = f'{nota["ruta"]} (líneas {desde} a {entran} de {len(lineas)})'
+    cola = (f"\n\n[cortada en la línea {entran}: para seguir, pedí «desde»: {entran + 1}"
+            + (f" y «hasta»: {hasta}]" if hasta < len(lineas) else "]")) if entran < hasta else ""
+    return cabeza + "\n\n" + "\n".join(lineas[desde - 1:entran])[:LARGO_NOTA] + cola
+
+
+def tramo_de_seccion(lineas, pedida):
+    import cerebro
+    if not isinstance(pedida, str) or not pedida.strip():
+        raise PedidoInvalido("«seccion» tiene que ser el título de una sección de la nota")
+    buscada = " ".join(pedida.strip().lstrip("#").split()).casefold()
+    _, cuerpo = cerebro.separar_frontmatter("\n".join(lineas))
+    desfase = len(lineas) - len(cuerpo.split("\n"))
+    secciones = cerebro.seccionar(cuerpo)
+    titulos = [s for s in secciones if s["titulo"]]
+    elegida = next((s for s in titulos if s["titulo"].casefold() == buscada), None) or next(
+        (s for s in titulos if buscada in s["titulo"].casefold()), None)
+    if elegida is None:
+        nombres = ", ".join(f"«{s['titulo']}»" for s in titulos[:12])
+        raise PedidoInvalido(f"esa nota no tiene una sección «{pedida.strip()[:80]}» (tiene: {nombres or 'ninguna'})")
+    desde = desfase + elegida["linea"] + 1
+    siguiente = next((s for s in secciones if s["linea"] > elegida["linea"] and s["titulo"]
+                      and s["nivel"] <= elegida["nivel"]), None)
+    hasta = desfase + siguiente["linea"] if siguiente else len(lineas)
+    return desde, hasta
 
 
 def avisar_charla(argumentos):
@@ -270,7 +341,8 @@ def llamar(params):
             texto = FUNCIONES[nombre](argumentos)
             if nombre != "avisar_charla":
                 import charlas
-                texto = charlas.tapar_claves(texto, charlas.secretos_propios())
+                from textos import sin_ordenes_para_ia
+                texto = sin_ordenes_para_ia(charlas.tapar_claves(texto, charlas.secretos_propios()))
     except PedidoInvalido as error:
         return {"content": [{"type": "text", "text": f"No pude: {error}."}], "isError": True}
     except Exception as error:

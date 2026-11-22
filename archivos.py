@@ -31,6 +31,8 @@ _EXTENSIONES = "|".join(map(re.escape, EXTENSIONES_SENSIBLES))
 _NOMBRES = "|".join(map(re.escape, NOMBRES_SENSIBLES))
 _GENERICOS = "|".join(map(re.escape, NOMBRES_GENERICOS))
 _PATRONES = r"id_(?:rsa|dsa|ecdsa|ed25519)[^\\/\s'\"]*|client_secret[^\\/\s'\"]*\.json|gh[\\/]hosts\.ya?ml"
+RE_NOMBRE_RARO = re.compile(r"[\x00-\x1f\x7f-\x9f  ]")
+RE_UNIDAD_LARGA = re.compile(r"\\\\[?.]\\[A-Za-z]:(?:\\|$)")
 RE_SENSIBLE = re.compile(rf"(?:^|[\\/])(?:{_CARPETAS})(?:[\\/]|$)|(?:^|[\\/])\.env(?:\.[^\\/]*)?$|\.(?:{_EXTENSIONES})$"
                          rf"|(?:^|[\\/])(?:{_PATRONES}|{_NOMBRES}|{_GENERICOS})$", re.I)
 RE_SENSIBLE_EN_TEXTO = re.compile(rf"(?:^|[\\/\s'\"*=:(])\.env(?![\w-])|(?:^|[\\/\s'\"*=:(])\.env\."
@@ -59,6 +61,19 @@ def es_sensible(ruta):
         return True
     propio = propios()[0]
     return bool(propio and propio.search(texto))
+
+
+def es_de_red(ruta):
+    texto = str(ruta).strip().replace("/", "\\")
+    return texto.startswith("\\\\") and not RE_UNIDAD_LARGA.match(texto)
+
+
+def archivo_local(ruta):
+    return not es_de_red(ruta) and os.path.isfile(ruta)
+
+
+def nombre_raro(ruta):
+    return bool(RE_NOMBRE_RARO.search(str(ruta)))
 
 
 def menciona_sensible(texto):

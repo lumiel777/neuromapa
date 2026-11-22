@@ -3,7 +3,8 @@ import math
 import re
 
 OPCIONES_CONSULTA = ("sobre", "buscar", "parecidas", "salud", "entidad", "mapa", "choques", "gasto", "lecciones",
-                     "aprendido", "proponer-hechos", "aprobar-hecho")
+                     "aprendido", "proponer-hechos", "aprobar-hecho", "charlas", "historial", "cambios", "pendientes",
+                     "reglas", "recetas", "receta", "fichas", "propuestas", "descartados")
 VENTANA_CHOQUE = 15 * 60
 T_DE_LINEA = re.compile(rb'\{\s*"t"\s*:\s*(-?[0-9][0-9.eE+\-]*)')
 PRUEBAS = "sesiones-de-prueba.txt"

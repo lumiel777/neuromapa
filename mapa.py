@@ -5,6 +5,7 @@ import sys
 import time
 from pathlib import Path
 
+from archivos import archivo_local
 from textos import cantidad, miles, sin_marcas
 
 CARPETA = Path(__file__).resolve().parent
@@ -12,6 +13,8 @@ EXTENSIONES_JS = {".js", ".mjs", ".cjs"}
 EXTENSIONES_HTML = {".html", ".htm"}
 EXTENSIONES_CSS = {".css"}
 EXTENSIONES_PY = {".py", ".pyw"}
+EXTENSIONES_LLAVES = {".cs", ".cpp", ".cc", ".cxx", ".c++", ".c", ".h", ".hpp", ".hh", ".hxx", ".h++", ".inl", ".ipp",
+                      ".java", ".ts", ".tsx", ".mts", ".cts", ".kt", ".kts", ".go", ".rs", ".php"}
 ANTES_DE_REGEX = {"return", "typeof", "case", "do", "else", "in", "of", "new", "delete", "void", "throw",
                   "instanceof", "yield", "await"}
 NO_SON_METODOS = {"if", "for", "while", "switch", "catch", "with", "function", "return", "typeof", "new",
@@ -44,7 +47,7 @@ DEF_PY = re.compile(r"^([ \t]*)(async\s+def|def|class)\s+(\w+)")
 
 
 class Bloque:
-    __slots__ = ("tipo", "nombre", "inicio", "fin", "padre")
+    __slots__ = ("tipo", "nombre", "inicio", "fin", "padre", "palabra")
 
     def __init__(self, tipo, nombre, inicio, fin=None, padre=None):
         self.tipo = tipo
@@ -52,6 +55,7 @@ class Bloque:
         self.inicio = inicio
         self.fin = fin
         self.padre = padre
+        self.palabra = "class"
 
 
 class Lineas:
@@ -450,7 +454,9 @@ def rango(bloque):
 
 def etiqueta(bloque):
     if bloque.tipo == "clase":
-        return f"class {bloque.nombre}"
+        return f"{bloque.palabra} {bloque.nombre}"
+    if bloque.tipo == "propiedad":
+        return f"{bloque.nombre} {{ }}"
     if bloque.tipo == "anonima":
         return f"↳ {bloque.nombre}"
     if bloque.tipo == "id":
@@ -473,12 +479,9 @@ def camino(bloque):
 
 
 def resolver(ruta_texto):
-    ruta = Path(ruta_texto)
-    if ruta.is_file():
-        return ruta
-    otra = CARPETA / ruta_texto
-    if otra.is_file():
-        return otra
+    for ruta in (Path(ruta_texto), CARPETA / ruta_texto):
+        if archivo_local(ruta):
+            return ruta
     return None
 
 
@@ -497,6 +500,9 @@ def armar(ruta):
         extra = reglas_css(texto, 0, len(texto), lineas)
     elif extension in EXTENSIONES_PY:
         bloques = mapa_py(texto)
+    elif extension in EXTENSIONES_LLAVES:
+        import mapa_llaves
+        bloques = mapa_llaves.estructura(texto, mapa_llaves.LENGUAJE_DE[extension], lineas)
     else:
         return None
     bloques.sort(key=orden_de_bloque)
@@ -628,7 +634,8 @@ def main(argumentos, con_internas=False):
         return 1
     armado = armar(ruta)
     if armado is None:
-        print(f"El mapa entiende .html, .js, .css y .py; {ruta.name} no es ninguno.")
+        print(f"El mapa entiende .html, .js, .css, .py, .cs (C#), C/C++ (.c, .cpp, .h…), .java, .ts/.tsx, .kt, .go, .rs y "
+              f".php; {ruta.name} no es ninguno.")
         return 1
     texto, bloques, extra, ids = armado
     palabra = " ".join(argumentos[1:]).strip()

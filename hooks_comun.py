@@ -11,6 +11,8 @@ FALLAS = "fallas.json"
 DIAS_FALLAS = 7
 MOSTRAR_FALLAS = 3
 RE_NOMBRE = re.compile(r"[\w.:\-]{1,40}\Z")
+TOPE_ENTRADA = 64 * 1024 * 1024
+TOPE_PARA_CLAUDE = 9000
 
 
 def nombre_seguro(valor):
@@ -56,7 +58,10 @@ def ya_cargadas(cwd, casa):
 
 def entrada():
     try:
-        datos = json.loads(sys.stdin.buffer.read().decode("utf-8", "replace") or "{}")
+        crudo = sys.stdin.buffer.read(TOPE_ENTRADA + 1)
+        if len(crudo) > TOPE_ENTRADA:
+            return {}
+        datos = json.loads(crudo.decode("utf-8", "replace") or "{}")
     except (OSError, ValueError, RecursionError):
         return {}
     return datos if isinstance(datos, dict) else {}
@@ -174,6 +179,22 @@ def contexto(evento, pasos, separador="\n"):
             partes.append(callado(paso))
         except Exception:
             fallo()
-    texto = separador.join(p for p in partes if p)
+    texto = para_claude(separador.join(p for p in partes if p))
     if texto:
         responder({"hookSpecificOutput": {"hookEventName": evento, "additionalContext": texto}})
+
+
+def para_claude(texto):
+    if not texto:
+        return ""
+    from textos import sin_ordenes_para_ia, tapar_claves
+    try:
+        import charlas
+        propios = charlas.secretos_propios()
+    except Exception:
+        propios = []
+    texto = sin_ordenes_para_ia(tapar_claves(texto, propios))
+    if len(texto) > TOPE_PARA_CLAUDE:
+        corte = texto[:TOPE_PARA_CLAUDE].rsplit("\n", 1)[0] or texto[:TOPE_PARA_CLAUDE]
+        texto = corte + "\n[Neuromapa cortó acá: el resto pasaba el tope que Claude Code deja leer de un hook.]"
+    return texto

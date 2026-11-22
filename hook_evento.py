@@ -14,6 +14,8 @@ from registro import OPCIONES_CONSULTA
 CARPETA = os.path.join(os.path.dirname(donde.config()[0]), "en-vivo")
 REGISTRO = os.path.join(CARPETA, "eventos.jsonl")
 CANDADO = os.path.join(CARPETA, "eventos.lock")
+PENDIENTES = os.path.join(CARPETA, "pendientes")
+TOPE_PENDIENTES = 500
 TOPE = 5 * 1024 * 1024
 EDAD_ROTAR = 7 * 86400
 RE_PRIMERO = re.compile(rb'\{"t":\s*(\d{9,11})')
@@ -762,24 +764,70 @@ def soltar_candado(fd):
     archivos.soltar_candado(fd)
 
 
+def dejar_pendiente(linea):
+    try:
+        permisos.crear(PENDIENTES)
+        if len(os.listdir(PENDIENTES)) >= TOPE_PENDIENTES:
+            return False
+        nombre = os.path.join(PENDIENTES, f"{time.time_ns()}-{os.getpid()}-{os.urandom(3).hex()}")
+        fd = os.open(nombre + ".escribiendo", os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+        with os.fdopen(fd, "wb") as f:
+            f.write(linea)
+        os.replace(nombre + ".escribiendo", nombre + ".jsonl")
+        return True
+    except OSError:
+        return False
+
+
+def leer_pendientes():
+    try:
+        nombres = sorted(n for n in os.listdir(PENDIENTES) if n.endswith(".jsonl"))
+    except OSError:
+        return []
+    salida = []
+    for nombre in nombres:
+        ruta = os.path.join(PENDIENTES, nombre)
+        try:
+            with open(ruta, "rb") as f:
+                contenido = f.read(TOPE_RENGLON)
+        except OSError:
+            continue
+        if contenido.endswith(b"\n"):
+            salida.append((ruta, contenido))
+    return salida
+
+
 def escribir(linea, espera=None, llave=None):
     permisos.crear(CARPETA)
     fd = tomar_candado(espera)
     if fd is None and archivos.hay_candados():
+        if dejar_pendiente(linea):
+            return
         raise CandadoOcupado("no conseguí el candado del registro: el evento no se guardó")
     rotado = False
+    pendientes = []
     try:
         rotado = rotar()
+        pendientes = leer_pendientes()
         with open(REGISTRO, "ab+") as f:
             largo = f.seek(0, os.SEEK_END)
             if largo:
                 f.seek(max(0, largo - COLA_REPETIDO))
                 cola = f.read()
                 if llave is not None and repetido(cola, llave):
-                    return
-                if not cola.endswith(b"\n"):
-                    linea = b"\r\n" + linea
-            f.write(linea)
+                    linea = b""
+                bloque = b"".join(contenido for _, contenido in pendientes) + linea
+                if bloque and not cola.endswith(b"\n"):
+                    bloque = b"\r\n" + bloque
+            else:
+                bloque = b"".join(contenido for _, contenido in pendientes) + linea
+            if bloque:
+                f.write(bloque)
+        for ruta, _ in pendientes:
+            try:
+                os.remove(ruta)
+            except OSError:
+                pass
     finally:
         soltar_candado(fd)
     if rotado:

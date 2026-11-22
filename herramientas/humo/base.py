@@ -165,6 +165,14 @@ def crear_repo(carpeta):
         return False
 
 
+def correr_git_de_prueba(carpeta, *argumentos):
+    try:
+        subprocess.run(["git", "-C", str(carpeta), *argumentos], check=True, capture_output=True, timeout=30)
+        return True
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
 def escribir_config(t):
     config = {
         "usuario": "Ana",

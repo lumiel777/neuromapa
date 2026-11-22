@@ -412,13 +412,37 @@ def carpeta_de_claude():
     return Path(os.environ.get("CLAUDE_CONFIG_DIR") or Path.home() / ".claude")
 
 
+def alias_de_memoria(carpeta, casa):
+    if carpeta.parent == casa / "agent-memory":
+        return f"agente-{carpeta.name}"
+    return carpeta.parent.name if carpeta.name == "memory" else carpeta.name
+
+
+def memoria_movida(casa):
+    try:
+        datos = json.loads((casa / "settings.json").read_text(encoding="utf-8-sig"))
+    except (OSError, ValueError):
+        return []
+    valor = datos.get("autoMemoryDirectory") if isinstance(datos, dict) else None
+    if not isinstance(valor, str) or not valor.strip():
+        return []
+    ruta = Path(os.path.expanduser(valor.strip()))
+    if not ruta.is_absolute() or str(ruta).replace("/", "\\").startswith("\\\\") or not ruta.is_dir():
+        return []
+    if (ruta / "MEMORY.md").is_file():
+        return [ruta]
+    return sorted(p for p in ruta.iterdir() if p.is_dir() and (p / "MEMORY.md").is_file())
+
+
 def por_defecto():
     casa = carpeta_de_claude()
     fuentes = []
     memorias = []
     reales = {}
     alias = []
-    for carpeta in sorted((casa / "projects").glob("*/memory")):
+    candidatas = list(sorted((casa / "projects").glob("*/memory"))) + memoria_movida(casa)
+    candidatas += sorted(p for p in (casa / "agent-memory").glob("*") if p.is_dir())
+    for carpeta in candidatas:
         if not carpeta.is_dir():
             continue
         real = os.path.normcase(os.path.realpath(carpeta))
@@ -429,7 +453,7 @@ def por_defecto():
             memorias.append(carpeta)
     if memorias:
         fuentes.append({"id": "memoria", "nombre": "Memoria", "color": "#E64980", "memoria": True,
-                        "raices": [[str(p), False, p.parent.name] for p in memorias]})
+                        "raices": [[str(p), False, alias_de_memoria(p, casa)] for p in memorias]})
     fuentes.append({"id": "instrucciones", "nombre": "Instrucciones (CLAUDE.md)", "color": "#F59F00",
                     "raices": [[str(casa), False, "usuario"]], "patron": "CLAUDE.md"})
     return {"fuentes": fuentes, "alias_rutas": alias}

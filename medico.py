@@ -17,7 +17,7 @@ import configuracion
 import permisos
 import procesos
 from archivos import escribir_atomico, json_roto, leer_objeto_json
-from textos import cantidad, citar, decimal, miles, recortar
+from textos import Cercos, cantidad, citar, decimal, miles, recortar
 
 TONOS = ("peligro", "aviso", "revisar", "info")
 LINEAS_READ = 2000
@@ -133,11 +133,16 @@ RE_ANTES_DE_CARPETA = re.compile(r"^.*[^\w.\-]")
 RE_CORTE_DE_CLAUSULA = re.compile(r"\.(?=\s)|;")
 MODIFICADORES_CS = (r"(?:public|private|protected|internal|static|override|virtual|async|unsafe|partial|sealed|abstract"
                     r"|extern|new|readonly)")
-RE_DECLARACION = re.compile(r"^\s*(?:\[[^\]]*\]\s*)*(?:" + MODIFICADORES_CS + r"\s+)+(?:[\w<>\[\],.?]+\s+)*?(\w+)\s*"
-                            r"(?:<[^>()]*>)?\s*\("
-                            r"|^\s*(?:" + MODIFICADORES_CS + r"\s+)*(?:class|struct|enum|interface)\s+(\w+)")
 RE_CASE = re.compile(r"^(\s*)case\b")
 CONTROL = r"(?:if|for|foreach|while|switch|catch|return|else|do|try|using|lock|with|match|when|new|throw|await|typeof|sizeof)"
+NO_ES_TIPO_CS = r"(?!(?:" + CONTROL[3:-1] + r"|yield|goto|var|const|namespace|case|default|get|set|init|add|remove)\b)"
+RE_DECLARACION = re.compile(
+    r"^\s*(?:\[[^\]]*\]\s*)*(?:" + MODIFICADORES_CS + r"\s+)+(?:[\w<>\[\],.?]+\s+)*?(\w+)\s*(?:<[^>()]*>)?\s*\("
+    r"|^\s*(?:" + MODIFICADORES_CS + r"\s+)*(?:class|struct|enum|interface|record(?:\s+(?:class|struct))?)\s+(\w+)"
+    r"|^\s*(?:\[[^\]]*\]\s*)*" + NO_ES_TIPO_CS + r"(?:[\w<>\[\],.?]+\s+)+?(?!" + CONTROL + r"\b)(\w+)\s*(?:<[^>()]*>)?"
+    r"\s*\([^;]*?\)?\s*(?:=>.*|where\b.*|:\s*(?:base|this)\b.*|\{.*)?$"
+    r"|^\s*(?:\[[^\]]*\]\s*)*(?:" + MODIFICADORES_CS + r"\s+)*" + NO_ES_TIPO_CS + r"(?:[\w<>\[\],.?]+\s+)+?(?!"
+    + CONTROL + r"\b)(\w+)\s*(?:\{|=>)")
 RE_DECLARACION_OTRAS = re.compile(
     r"^\s*(?:[@\w]+\s+)*?(?:function\*?|func|fn|fun)\s+(?:\([^)]*\)\s*)?(?:<[^>]*>\s*)?(?:\w+\.)?(\w+)"
     r"|^\s*(?:[@\w]+\s+)*?(?:class|struct|enum|interface|trait|impl|object)\s+(\w+)"
@@ -551,10 +556,9 @@ def destinos_de_enlaces(texto):
     codigo = nucleo.tramos_de_codigo(texto)
     wiki = (m.group(1).strip() for m in nucleo.RE_WIKI.finditer(texto) if not nucleo.en_codigo(codigo, m.start()))
     salida = [d for d in wiki if not nucleo.RE_ADJUNTO.search(d)]
-    for m in nucleo.RE_ENLACE.finditer(texto):
-        if nucleo.en_codigo(codigo, m.start()):
-            continue
-        destino = m.group(2).strip()
+    crudos = [m.group(2) for m in nucleo.RE_ENLACE.finditer(texto) if not nucleo.en_codigo(codigo, m.start())]
+    for destino in crudos + [crudo for crudo, _, _ in nucleo.usos_de_referencias(texto, codigo)]:
+        destino = destino.strip()
         if destino.startswith("<") and destino.endswith(">"):
             destino = destino[1:-1].strip()
         if destino.split("#")[0].split("?")[0].lower().endswith(".md") and not nucleo.RE_ESQUEMA.match(destino):
@@ -572,7 +576,7 @@ def enlaces_rotos(ruta_nota, texto, antes=""):
     for destino in destinos_de_enlaces(texto or ""):
         limpio = urllib.parse.unquote(destino.split("#")[0].split("?")[0])
         nombre = limpio if limpio.lower().endswith(".md") else f"{limpio}.md"
-        if destino not in ya and destino not in dudosos and not (carpeta / nombre).is_file():
+        if destino not in ya and destino not in dudosos and not nucleo.archivo_local(carpeta / nombre):
             dudosos.append(destino)
     if not dudosos:
         return []
@@ -755,6 +759,25 @@ def regla_tamano(cerebro):
                 f'Referencia larga: {" y ".join(motivos)}. Read la muestra por partes y avisa que la vista es parcial.',
                 f"Para ir directo a lo que hace falta: {configuracion.comando()} --buscar \"tema\", "
                 "que da la sección y la línea."))
+    return salida
+
+
+TOPE_CLAUDE_DE_SUBCARPETA = 40000
+
+
+def regla_claude_de_subcarpeta(cerebro):
+    raices = {nucleo.normalizar(r) for r, _ in nucleo.RAICES_PROYECTO} | {nucleo.normalizar(configuracion.carpeta_de_claude())}
+    salida = []
+    for nodo in cerebro.nodos:
+        if Path(nodo["ruta"]).name.lower() != "claude.md" or nucleo.normalizar(Path(nodo["ruta"]).parent) in raices:
+            continue
+        largo = len(nodo["_cuerpo"])
+        if largo > TOPE_CLAUDE_DE_SUBCARPETA:
+            salida.append(hallazgo(
+                "claudeLargo", nodo["id"], 1, "aviso",
+                f"Es el CLAUDE.md de una subcarpeta y tiene {miles(largo)} caracteres: Claude Code lo carga cuando se "
+                f"trabaja ahí y lo corta a los {miles(TOPE_CLAUDE_DE_SUBCARPETA)}, así que el final no llega.",
+                "Dejar ahí lo que hace falta siempre y pasar el resto a una nota que el CLAUDE.md nombre."))
     return salida
 
 
@@ -1084,16 +1107,58 @@ def regla_cifras(cerebro):
     return salida
 
 
+RE_TIEMPO_RELATIVO = re.compile(
+    r"(?<![\w-])(ayer|anoche|anteayer|mañana|la semana (?:que viene|pasada|próxima)|el mes (?:que viene|pasado|próximo)"
+    r"|yesterday|tomorrow|last week|next week)(?![\w-])(?!['’]s\b)", re.I)
+RE_FECHA_CERCA = re.compile(r"\b\d{1,2}/\d{1,2}\b|\b20\d\d-\d\d-\d\d\b")
+RE_PALABRA_DE_ANTES = re.compile(r"(\w+)\W*\Z")
+NO_ES_FECHA_DESPUES_DE = {"la", "esa", "esta", "una", "de", "del", "por", "cada", "toda", "pasado", "como", "si"}
+DIAS_TIEMPO_RELATIVO = 1
+
+
+def regla_tiempo_relativo(cerebro, ahora=None):
+    ahora = time.time() if ahora is None else ahora
+    salida = []
+    for nodo in cerebro.nodos:
+        if not cerebro.fuente_de[nodo["id"]].get("memoria") or nodo["tipo"] == "indice" or es_historica(nodo):
+            continue
+        cuerpo = nodo["_cuerpo"]
+        if not RE_TIEMPO_RELATIVO.search(cuerpo):
+            continue
+        try:
+            if ahora - os.path.getmtime(nodo["ruta"]) < DIAS_TIEMPO_RELATIVO * 86400:
+                continue
+        except OSError:
+            continue
+        codigo = nucleo.tramos_de_codigo(cuerpo)
+        avisados = set()
+        for m in RE_TIEMPO_RELATIVO.finditer(cuerpo):
+            a = cuerpo.rfind("\n", 0, m.start()) + 1
+            b = cuerpo.find("\n", m.end())
+            renglon = cuerpo[a:len(cuerpo) if b < 0 else b]
+            parrafo = cuerpo[cuerpo.rfind("\n\n", 0, m.start()) + 1:m.start()]
+            antes = RE_PALABRA_DE_ANTES.search(cuerpo[max(0, m.start() - 40):m.start()])
+            if a in avisados or RE_FECHA_CERCA.search(renglon) or nucleo.en_codigo(codigo, m.start()) \
+                    or parrafo.count("`") % 2 or (antes and antes.group(1).lower() in NO_ES_FECHA_DESPUES_DE):
+                continue
+            avisados.add(a)
+            salida.append(hallazgo(
+                "tiempoRelativo", nodo["id"], linea_en(nodo, a), "revisar",
+                f"Dice «{m.group(1)}» sin fecha ({citar(renglon.strip(), LARGO_CITA)}): la nota ya tiene días y no se "
+                "sabe qué día era.",
+                "Cambiarlo por la fecha (por ejemplo «el 20/11»)."))
+    return salida
+
+
 def oraciones(cuerpo, filtro=""):
     lineas = cuerpo.split("\n")
     parrafo = []
     inicio = 0
     posicion = 0
-    en_codigo = False
+    cercos = Cercos()
     for linea in lineas + [""]:
         s = linea.strip()
-        if s.startswith("```") or s.startswith("~~~"):
-            en_codigo = not en_codigo
+        en_codigo = bool(cercos.paso(linea))
         corta = en_codigo or not s or RE_ITEM.match(linea) or s.startswith("#")
         if corta and parrafo:
             texto = "\n".join(parrafo)
@@ -1102,7 +1167,7 @@ def oraciones(cuerpo, filtro=""):
                     if m.group(0).strip():
                         yield inicio + m.start(), m.group(0)
             parrafo = []
-        if not en_codigo and s and not s.startswith("#") and not s.startswith("```") and not s.startswith("~~~"):
+        if not en_codigo and s and not s.startswith("#"):
             if not parrafo:
                 inicio = posicion
             parrafo.append(linea)
@@ -1557,6 +1622,29 @@ class Codigo:
     def __init__(self):
         self.indices = {}
         self.archivos = {}
+        self.de_git = {}
+
+    def seguidas(self, raiz):
+        if raiz not in self.de_git:
+            salida = correr_git(raiz, ["ls-files", "-z"], espera=30)
+            self.de_git[raiz] = None if salida is None else {
+                nucleo.normalizar(os.path.join(raiz, r)) for r in salida.split("\0") if r}
+        return self.de_git[raiz]
+
+    def por_nombres(self, lista, buscados):
+        con_todos = []
+        for ruta in lista:
+            datos = self.archivo(ruta)
+            if datos and all(self.aparece(datos, busqueda, 1, datos["total"]) for _, busqueda in buscados):
+                con_todos.append(ruta)
+        return con_todos if len(con_todos) == 1 else lista
+
+    def solo_las_de_git(self, base, lista):
+        conjuntos = [self.seguidas(raiz["ruta"]) for raiz in raices_de_codigo(base)]
+        if any(c is None for c in conjuntos):
+            return lista
+        seguidas = [r for r in lista if any(nucleo.normalizar(r) in c for c in conjuntos)]
+        return seguidas if len(seguidas) == 1 else lista
 
     def indice(self, base):
         if base not in self.indices:
@@ -1598,6 +1686,8 @@ class Codigo:
             marcadas = [r for r in lista for raiz in raices if raiz["marca"] and raiz["marca"].search(contexto)
                         and nucleo.normalizar(r).startswith(f'{nucleo.normalizar(raiz["ruta"])}\\')]
             lista = marcadas or lista
+        if len(lista) > 1:
+            lista = self.solo_las_de_git(base, lista)
         return lista
 
     def archivo(self, ruta):
@@ -1713,7 +1803,9 @@ class Codigo:
         m = (RE_DECLARACION if ext == "cs" else RE_DECLARACION_PY if ext == "py" else RE_DECLARACION_OTRAS).match(linea)
         if not m:
             return None
-        if ext in ("cs", "py"):
+        if ext == "cs":
+            return next(g for g in m.groups() if g), bool(m.group(1) or m.group(3))
+        if ext == "py":
             return m.group(1) or m.group(2), bool(m.group(1))
         return next(g for g in m.groups() if g), m.group(2) is None
 
@@ -2246,6 +2338,8 @@ def revisar_anclas(cerebro, codigo=None):
             propios = identificadores_propios(cuerpo, inicio, fin, grupo)
             for ancla in grupo:
                 lista = archivos_del_ancla(codigo, base, ancla, texto, nodo["ruta"])
+                if len(lista) > 1 and propios[id(ancla)]:
+                    lista = codigo.por_nombres(lista, propios[id(ancla)])
                 if not lista:
                     cuentas["sinArchivo"] += 1
                     continue
@@ -2823,10 +2917,12 @@ def revisar(cerebro, saltos=None, filtrar=True):
     hallazgos += regla_frontmatter(cerebro)
     hallazgos += regla_rutas(cerebro, rutas)
     hallazgos += regla_tamano(cerebro)
+    hallazgos += regla_claude_de_subcarpeta(cerebro)
     hallazgos += regla_partes(cerebro)
     hallazgos += regla_copias_de_conflicto(cerebro)
     hallazgos += regla_datos_rotos(cerebro)
     hallazgos += regla_cifras(cerebro)
+    hallazgos += regla_tiempo_relativo(cerebro)
     hallazgos += regla_probado(cerebro)
     hallazgos += regla_huerfanas(cerebro, saltos)
     hallazgos += regla_memorias_parecidas(cerebro)
@@ -2877,6 +2973,7 @@ NOMBRE_EN_GRUPO = {"anclaCorrida": ("ancla corrida", "anclas corridas"),
                    "huellaProbable": ("huella que parece un commit", "huellas que parecen commits"),
                    "yaResuelto": ("problema que quizás ya está resuelto", "problemas que quizás ya están resueltos"),
                    "cifras": ("cifra que no coincide", "cifras que no coinciden"),
+                   "tiempoRelativo": ("fecha relativa («ayer», «mañana»)", "fechas relativas («ayer», «mañana»)"),
                    "hecho": ("cifra de control que cambió", "cifras de control que cambiaron")}
 RENGLONES_A_LA_VISTA = 4
 LARGO_EJEMPLO = 160

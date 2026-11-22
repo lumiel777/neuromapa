@@ -27,9 +27,27 @@ fi
 version() {
     "$@" -c "import sys; print(sys.version_info >= (3, 10))" 2>/dev/null
 }
+buscar() {
+    separador=$IFS
+    IFS=:
+    set -f
+    for carpeta in $PATH; do
+        case "$carpeta" in
+            /*) if [ -f "$carpeta/$1" ] && [ -x "$carpeta/$1" ]; then
+                    IFS=$separador
+                    set +f
+                    printf '%s\n' "$carpeta/$1"
+                    return 0
+                fi ;;
+        esac
+    done
+    IFS=$separador
+    set +f
+    return 1
+}
 viejo=""
 for nombre in ${NEUROMAPA_PYTHONS:-python3 python py}; do
-    ruta=$(command -v "$nombre" 2>/dev/null) || continue
+    ruta=$(buscar "$nombre") || continue
     if [ "$nombre" = py ]; then
         respuesta=$(version "$ruta" -3)
     else

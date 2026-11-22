@@ -519,16 +519,17 @@
     pulso.hidden = v !== 'grafo';
     $('#vineta').hidden = v !== 'grafo';
     $('#lista').hidden = v !== 'lista';
+    $('#resumen').hidden = v !== 'resumen';
     $('#orden-lista').hidden = v !== 'lista';
     $('#controles-grafo').hidden = v !== 'grafo' || !graficoListo;
     $('#contador').hidden = v !== 'grafo';
     $('#estado-grafo').hidden = v !== 'grafo' || graficoListo;
     ocultarTooltip();
-    if (v === 'lista') {
+    if (v === 'lista' || v === 'resumen') {
       detenerVida();
       vaciarEfectos();
       soltarPrevia();
-      renderLista();
+      if (v === 'lista') renderLista(); else renderResumen();
     } else {
       pedirDibujo();
       programarAmbiente(1500);

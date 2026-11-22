@@ -12,7 +12,7 @@ from pathlib import Path
 
 import archivos
 from archivos import escribir_atomico
-from textos import cantidad, decimal, miles, recortar, sin_wiki
+from textos import TOPE_FRONTMATTER, Cercos, cantidad, decimal, miles, recortar, sin_wiki
 
 BOM = b"\xef\xbb\xbf"
 RESPALDOS = "respaldos"
@@ -24,7 +24,6 @@ PESADAS = 5
 RE_TITULO = re.compile(r"^ {0,3}(#{1,6})[ \t]+\S")
 RE_ITEM = re.compile(r"^(?:[-*+]|\d{1,3}[.)])[ \t]+\S")
 RE_REGLA = re.compile(r"^(?:-{3,}|\*{3,}|_{3,})[ \t]*$")
-RE_CERCO = re.compile(r"^ {0,3}(```|~~~)")
 RE_PARTE = re.compile(r"-historia-(\d+)$", re.I)
 RE_TOMO = re.compile(r"-parte-(\d+)$", re.I)
 RE_TITULO_DE_TOMO = re.compile(r",? parte \d+$", re.I)
@@ -86,10 +85,17 @@ def con_fin(renglones, fin):
     return [pelado(r) + fin for r in renglones]
 
 
+def ruta_relativa(ruta, desde):
+    try:
+        return os.path.relpath(str(ruta), str(desde)).replace("\\", "/")
+    except ValueError:
+        return str(ruta).replace("\\", "/")
+
+
 def fin_de_cabeza(renglones):
     if not renglones or renglones[0].strip() != "---":
         return 0
-    for i in range(1, len(renglones)):
+    for i in range(1, min(len(renglones), TOPE_FRONTMATTER + 1)):
         if renglones[i].strip() in ("---", "..."):
             return i + 1
     return 0
@@ -97,16 +103,14 @@ def fin_de_cabeza(renglones):
 
 def piezas_de(renglones):
     piezas = []
-    cerco = ""
+    cercos = Cercos()
     en_blanco = True
     for i in range(fin_de_cabeza(renglones), len(renglones)):
         crudo = pelado(renglones[i])
         clase, nivel = "", 0
-        marca = RE_CERCO.match(crudo)
-        if cerco:
-            if marca and marca.group(1) == cerco:
-                cerco = ""
-        else:
+        dentro = cercos.marca
+        cercos.paso(crudo)
+        if not dentro:
             titulo = RE_TITULO.match(crudo)
             anterior = piezas[-1]["clase"] if piezas else ""
             if titulo:
@@ -118,8 +122,6 @@ def piezas_de(renglones):
             elif crudo.strip() and (not anterior or (en_blanco and not crudo[0].isspace()
                                                      and anterior in ("item", "regla"))):
                 clase = "parrafo"
-            if marca:
-                cerco = marca.group(1)
         if clase:
             piezas.append({"clase": clase, "nivel": nivel, "desde": i, "hasta": i + 1, "titulo": crudo.strip()})
         elif piezas:
@@ -425,8 +427,8 @@ def planear(ruta, mover, destino="", titulo="", descripcion="", memoria=False, i
         (limpiar(p["titulo"]) for p in piezas if p["clase"] == "titulo" and p["nivel"] == 1), "") or ruta.stem
     if tomo:
         titulo_nota = RE_TITULO_DE_TOMO.sub("", titulo_nota) or ruta.stem
-    relativo = os.path.relpath(str(ruta_destino), str(ruta.parent)).replace("\\", "/")
-    de_vuelta = os.path.relpath(str(ruta), str(ruta_destino.parent)).replace("\\", "/")
+    relativo = ruta_relativa(ruta_destino, ruta.parent)
+    de_vuelta = ruta_relativa(ruta, ruta_destino.parent)
     referencia = f"[[{ruta_destino.stem}]]" if memoria else enlace_a(relativo)
     cuantas = cantidad(len(movidas), "pieza", "piezas")
     como_item = movidas[0]["clase"] == "item"
@@ -1199,20 +1201,15 @@ def elegir_viejas(piezas, total, objetivo, hoy, dias_frescos, tope=None):
 
 def cortes_de(renglones, piezas, entre_renglones=False):
     rangos = {p["desde"]: p["nivel"] or RANGO_DE_CORTE[p["clase"]] for p in piezas}
-    cerco = ""
+    cercos = Cercos()
     en_blanco = False
     titulo_de_arriba = 0
     for i in range(fin_de_cabeza(renglones), len(renglones)):
         crudo = pelado(renglones[i])
-        marca = RE_CERCO.match(crudo)
-        if cerco:
-            if marca and marca.group(1) == cerco:
-                cerco = ""
-        else:
-            if (en_blanco or entre_renglones) and crudo.strip() and not crudo[0].isspace():
-                rangos.setdefault(i, RANGO_DE_CORTE["parrafo"])
-            if marca:
-                cerco = marca.group(1)
+        dentro = cercos.marca
+        cercos.paso(crudo)
+        if not dentro and (en_blanco or entre_renglones) and crudo.strip() and not crudo[0].isspace():
+            rangos.setdefault(i, RANGO_DE_CORTE["parrafo"])
         rango = rangos.get(i, 0)
         if titulo_de_arriba and rango > titulo_de_arriba:
             del rangos[i]

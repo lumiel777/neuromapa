@@ -371,7 +371,7 @@ def armar(resultado, cargadas=frozenset(), tope=TOPE):
         return ""
 
     def unir():
-        lineas = [ENCABEZADO]
+        lineas = [ENCABEZADO] + ([buscador.AVISO_INDICE_VIEJO] if resultado.get("viejo") else [])
         if carpeta:
             corta, padre = partes(carpeta)
             lineas.append(LEYENDA.format(corta=corta, padre=padre))

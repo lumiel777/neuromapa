@@ -378,13 +378,12 @@ def leer_borrador(consulta):
     if len(consulta) <= LARGO_CONSULTA_COMO_RUTA and "\n" not in consulta:
         ruta = Path(consulta.strip().strip('"'))
         try:
-            es_archivo = ruta.suffix.lower() in EXTENSIONES_BORRADOR and ruta.is_file()
+            es_archivo = ruta.suffix.lower() in EXTENSIONES_BORRADOR and nucleo.archivo_local(ruta)
+            texto = nucleo.leer_texto(ruta)[0] if es_archivo else None
         except (OSError, ValueError):
-            es_archivo = False
-        if es_archivo:
-            texto, _ = nucleo.leer_texto(ruta)
-            if texto is not None:
-                return texto.replace("\r\n", "\n").replace("\r", "\n"), ruta
+            texto = None
+        if texto is not None:
+            return texto.replace("\r\n", "\n").replace("\r", "\n"), ruta
     return consulta, None
 
 

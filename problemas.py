@@ -1,7 +1,6 @@
 import json
 import os
 import re
-import subprocess
 import sys
 import time
 
@@ -151,12 +150,8 @@ def refrescar(carpeta, programa, ahora=None):
 
 
 def lanzar_de_fondo(argumentos):
-    opciones = {"stdin": subprocess.DEVNULL, "stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL}
-    if os.name == "nt":
-        opciones["creationflags"] = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
-    else:
-        opciones["start_new_session"] = True
-    subprocess.Popen(argumentos, **opciones)
+    import procesos
+    procesos.lanzar_de_fondo(argumentos)
 
 
 def memoria_del_chat(cwd, casa):

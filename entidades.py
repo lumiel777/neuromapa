@@ -7,6 +7,7 @@ from pathlib import Path
 
 import cerebro as nucleo
 import medico
+import simbolos
 
 EXTENSIONES = ("cs", "py", "ps1", "ini", "txt", "sql", "ts", "dll", "exe")
 RE_EXTENSION = re.compile(f'\\.(?:{"|".join(EXTENSIONES)})(?![\\w\\-]|\\.\\w)', re.I)
@@ -420,6 +421,10 @@ def texto_entidad(cerebro, consulta, tope=LINEAS_CONSOLA):
         lineas.append("Busco por el nombre, «" + nombre + "»" + (", en el proyecto " + proyecto if proyecto else "")
                       + ": el índice guarda el nombre del archivo y su proyecto, no la carpeta.")
     sin_repos = " (no hay repositorios git en la configuración para buscarlo)"
+    if not hallados and simbolos.es_simbolo(consulta):
+        del_codigo = simbolos.texto_simbolo(cerebro, consulta)
+        if del_codigo:
+            return del_codigo, 0
     if not hallados:
         como_commit = (" y no es un commit de ningún repo conocido." if medico.repos_conocidos()
                        else f"; no pude buscarlo como commit{sin_repos}.")
@@ -457,7 +462,8 @@ def texto_entidad(cerebro, consulta, tope=LINEAS_CONSOLA):
 
 def main(consulta):
     if not consulta or not consulta.strip():
-        print("Falta qué buscar: un archivo (riego.py), un commit (a1b2c3d) o una tabla (pedidos).")
+        print("Falta qué buscar: un archivo (riego.py), un commit (a1b2c3d), una tabla (pedidos) o una función "
+              "(Clase.Metodo).")
         return 1
     cerebro = nucleo.desde_disco()
     if cerebro.resumen_entidades is None:

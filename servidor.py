@@ -189,6 +189,7 @@ def regenerador(ultima):
     proxima = time.time() + CADA_HUELLA
     fallas = 0
     programa = huella_del_programa()
+    config = cerebro.firma(configuracion.archivo())
     while True:
         time.sleep(0.25)
         ahora = time.time()
@@ -205,6 +206,10 @@ def regenerador(ultima):
                 programa_cambiado.set()
                 print("Se actualizó el programa de Neuromapa: este mapa sigue con el de antes. Para usar el nuevo, abrilo "
                       "de nuevo (el mapa nuevo apaga a este solo).", flush=True)
+            if config is not None and cerebro.firma(configuracion.archivo()) != config:
+                config = None
+                print("Cambió el config.json: este mapa sigue con la configuración de cuando arrancó. Para usar la "
+                      "nueva, abrilo de nuevo (con --reiniciar).", flush=True)
         if toca:
             with regenerar_lock:
                 regenerar["en"] = 0.0

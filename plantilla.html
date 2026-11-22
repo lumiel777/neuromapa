@@ -666,6 +666,17 @@ body.cine .visita, body.anonimo .visita { display: none; }
 .tt-desc { color: var(--texto-2); margin-top: 5px; }
 .lista { position: absolute; top: 56px; right: 0; bottom: 0; left: 0; overflow-y: auto; padding: 4px 16px 24px; }
 .centro.con-local .lista { top: calc(62px + var(--alto-banda, 38px)); }
+.resumen { position: absolute; top: 56px; right: 0; bottom: 0; left: 0; overflow: hidden;
+  background: radial-gradient(ellipse 80% 70% at 50% 45%, var(--fondo-grafo-centro), var(--fondo-grafo) 75%); }
+.resumen-svg { display: block; width: 100%; height: calc(100% - 40px); }
+.resumen-cruce { fill: none; stroke-linecap: round; }
+.resumen-grupo { cursor: pointer; outline: none; }
+.resumen-grupo:hover circle:nth-of-type(2), .resumen-grupo:focus-visible circle:nth-of-type(2) { stroke: var(--texto); stroke-width: 2; }
+.resumen-cuenta { fill: #fff; font: 600 13px/1 system-ui, sans-serif; text-anchor: middle; pointer-events: none;
+  paint-order: stroke; stroke: rgba(0, 0, 0, 0.35); stroke-width: 2px; }
+.resumen-nombre { fill: var(--texto); font: 500 12px/1 system-ui, sans-serif; text-anchor: middle; pointer-events: none; }
+.resumen-pie, .resumen-vacio { margin: 0; padding: 8px 16px; color: var(--texto-suave, var(--texto)); opacity: 0.75; font-size: 12px;
+  text-align: center; }
 .lista-cabeza { max-width: 980px; margin: 0 auto 8px; font-size: 12.5px; color: var(--texto-3); }
 .lista-filas { max-width: 980px; margin: 0 auto; display: grid; gap: 2px; }
 .lista-filas.lista-virtual { display: block; }
@@ -1146,7 +1157,7 @@ body.cine .grabando-marca:not([hidden]) { display: inline-flex; }
 :root[data-anim="completo"] .zocalo.entra .zocalo-texto { animation: entrar-subir 280ms cubic-bezier(.2,.8,.2,1) both; }
 :root[data-anim="suave"] .zocalo.entra .zocalo-texto { animation: fundir 200ms ease-out both; }
 body.cine .barra, body.cine .aviso-libs, body.cine .lateral, body.cine .en-vivo, body.cine .herramientas, body.cine .contador, body.cine .eeg, body.cine .rio,
-body.cine .banda-local, body.cine .tooltip, body.cine .panel, body.cine .velo, body.cine .lista { display: none !important; }
+body.cine .banda-local, body.cine .tooltip, body.cine .panel, body.cine .velo, body.cine .lista, body.cine .resumen { display: none !important; }
 body.cine .cuerpo { grid-template-columns: minmax(0, 1fr); padding: 0; gap: 0; }
 body.cine .centro { margin: 0; }
 @media (prefers-reduced-transparency: reduce) { .vidrio-flotante { background: var(--superficie); -webkit-backdrop-filter: none; backdrop-filter: none; } }
@@ -1346,6 +1357,7 @@ body.anonimo #bloque-etiquetas, body.anonimo .chip.etiqueta { display: none !imp
       <canvas id="pulso" aria-hidden="true"></canvas>
       <div class="vineta" id="vineta" aria-hidden="true"></div>
       <div id="lista" class="lista" hidden></div>
+      <div id="resumen" class="resumen" hidden></div>
       <div class="estado-grafo" id="estado-grafo">Cargando el grafo…</div>
       <div class="visita" id="visita" role="dialog" aria-labelledby="visita-titulo" hidden>
         <b id="visita-titulo">Para empezar</b>
@@ -1356,6 +1368,7 @@ body.anonimo #bloque-etiquetas, body.anonimo .chip.etiqueta { display: none !imp
         <div class="segmentado" role="group" aria-label="Vista">
           <button type="button" data-vista="grafo" aria-pressed="true">Grafo</button>
           <button type="button" data-vista="lista" aria-pressed="false">Lista</button>
+          <button type="button" data-vista="resumen" aria-pressed="false" title="Un círculo por grupo y las conexiones entre ellos: para cuando hay demasiadas notas">Resumen</button>
         </div>
         <select id="orden-lista" class="selector" aria-label="Ordenar la lista" hidden>
           <option value="grupo">Por grupo</option>

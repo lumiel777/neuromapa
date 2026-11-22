@@ -58,6 +58,12 @@ def revisar_configuracion(t):
         (casa / "projects" / nombre / "memory").mkdir(parents=True)
         (casa / "projects" / nombre / "memory" / "MEMORY.md").write_text("# Memoria\n", encoding="utf-8")
     (casa / "CLAUDE.md").write_text("# Instrucciones\n", encoding="utf-8")
+    (casa / "agent-memory" / "revisor").mkdir(parents=True)
+    (casa / "agent-memory" / "revisor" / "MEMORY.md").write_text("# Memoria del revisor\n", encoding="utf-8")
+    movida = t / "memoria-movida"
+    movida.mkdir()
+    (movida / "MEMORY.md").write_text("# Memoria movida\n", encoding="utf-8")
+    (casa / "settings.json").write_text(json.dumps({"autoMemoryDirectory": str(movida)}), encoding="utf-8")
     antes = os.environ.get("CLAUDE_CONFIG_DIR")
     os.environ["CLAUDE_CONFIG_DIR"] = str(casa)
     try:
@@ -68,8 +74,10 @@ def revisar_configuracion(t):
         else:
             os.environ["CLAUDE_CONFIG_DIR"] = antes
     memoria = next((f for f in armada["fuentes"] if f["id"] == "memoria"), {})
-    probar("sin config.json, encuentra las 2 memorias de la carpeta de Claude", len(memoria.get("raices", [])) == 2,
-           memoria.get("raices"))
+    alias = sorted(r[2] for r in memoria.get("raices", []))
+    probar("sin config.json, encuentra las 2 memorias de la carpeta de Claude, la de un subagente (agent-memory) y la "
+           "que se movió con autoMemoryDirectory (antes, esas dos quedaban afuera)",
+           alias == ["C--x-dos", "C--x-uno", "agente-revisor", "memoria-movida"], memoria.get("raices"))
     instrucciones = next((f for f in armada["fuentes"] if f["id"] == "instrucciones"), {})
     probar("y lee el CLAUDE.md de esa carpeta", bool(instrucciones.get("raices")) and instrucciones["raices"][0][0] == str(casa),
            instrucciones.get("raices"))

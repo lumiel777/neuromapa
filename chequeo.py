@@ -12,6 +12,7 @@ from textos import cantidad, miles
 
 HOOKS = ("hook_cerebro", "hook_servir", "hook_choques", "hook_parecidas", "hook_guardar", "hook_freno")
 RE_SCRIPT = re.compile(r"([^\s\"']*hook_\w+\.py)")
+RE_PY_ENTRE_COMILLAS = re.compile(r"[\"']([^\"'\n]+?\.py)[\"']")
 RE_PYTHON = re.compile(r"^\s*\"?([^\"\s]+\.exe)\"?", re.I)
 QUIETO = 24 * 3600
 DIAS_PISTA = 7
@@ -170,19 +171,38 @@ def revisar_permisos(datos):
     return [("falta" if linea.startswith("GRAVE") else "ojo", linea.split(None, 1)[1] if " " in linea else linea)]
 
 
+def rutas_py_perdidas(texto):
+    import archivos
+    salida = []
+    for crudo in RE_PY_ENTRE_COMILLAS.findall(texto):
+        ruta = crudo.replace("\\\\", "\\")
+        if os.path.isabs(ruta) and not archivos.es_de_red(ruta) and not os.path.isfile(ruta) and ruta not in salida:
+            salida.append(ruta)
+    return salida
+
+
 def revisar_codex(casa=None):
     casa = Path(casa) if casa else Path.home() / ".codex"
     if not casa.is_dir():
         return []
     try:
-        conector = "[mcp_servers.neuromapa]" in (casa / "config.toml").read_text(encoding="utf-8", errors="replace")
+        toml = (casa / "config.toml").read_text(encoding="utf-8", errors="replace")
+        inicio = toml.find("[mcp_servers.neuromapa]")
+        conector = inicio >= 0
+        fin = toml.find("\n[", inicio + 1) if conector else -1
+        seccion = toml[inicio:fin if fin >= 0 else len(toml)] if conector else ""
     except OSError:
-        conector = False
+        conector, seccion = False, ""
     try:
         texto = (casa / "hooks.json").read_text(encoding="utf-8", errors="replace")
         pista = "hook_servir.py" in texto and "--codex" in texto
     except OSError:
-        pista = False
+        texto, pista = "", False
+    perdidas = rutas_py_perdidas(seccion) + (rutas_py_perdidas(texto) if pista else [])
+    if perdidas:
+        return [("ojo", f"Codex: apunta a {perdidas[0]}, que ya no existe (¿se movió Neuromapa?): el "
+                        f"{'conector' if perdidas[0] in rutas_py_perdidas(seccion) else 'hook'} no anda. Volvé a "
+                        "registrarlo con la ruta nueva (ver «Codex» en cómo funciona).")]
     if conector and pista:
         return [("bien", "Codex: el conector y la pista están puestos.")]
     if conector or pista:
