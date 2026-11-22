@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Neuromapa · la memoria de Claude Code como un cerebro</title>
+<meta name="description" content="Neuromapa dibuja la memoria de Claude Code como un cerebro 3D en vivo, revisa que tus notas sigan siendo ciertas y le da a Claude lo que ya sabe. Libre, local y sin telemetría.">
+<meta name="author" content="Cristofer Bonifacio">
+<meta property="og:title" content="Neuromapa">
+<meta property="og:description" content="La memoria de Claude Code como un cerebro 3D en vivo. Libre, local y sin telemetría.">
+<meta property="og:image" content="neuromapa.gif">
+<style>
+:root {
+  --fondo: #07080d;
+  --fondo-2: #10121c;
+  --tarjeta: rgba(255, 255, 255, 0.045);
+  --borde: rgba(255, 255, 255, 0.09);
+  --texto: #eef0f6;
+  --suave: #a7adbf;
+  --acento: #8b7bff;
+  --acento-2: #3fd0c9;
+  --rosa: #ff6fae;
+  --radio: 18px;
+  --ancho: 1080px;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--fondo);
+  color: var(--texto);
+  font: 17px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+a { color: var(--acento); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code, pre { font-family: ui-monospace, "Cascadia Code", Consolas, "Liberation Mono", monospace; }
+.cielo { position: fixed; inset: 0; z-index: -2; width: 100%; height: 100%; }
+.niebla {
+  position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(60% 50% at 70% 20%, rgba(139, 123, 255, 0.16), transparent 70%),
+    radial-gradient(50% 45% at 15% 70%, rgba(63, 208, 201, 0.10), transparent 70%),
+    radial-gradient(40% 35% at 85% 85%, rgba(255, 111, 174, 0.08), transparent 70%);
+}
+.envoltura { width: min(var(--ancho), 100% - 32px); margin: 0 auto; }
+header.barra {
+  position: sticky; top: 0; z-index: 10;
+  backdrop-filter: saturate(160%) blur(14px); -webkit-backdrop-filter: saturate(160%) blur(14px);
+  background: rgba(7, 8, 13, 0.6); border-bottom: 1px solid var(--borde);
+}
+.barra .envoltura { display: flex; align-items: center; justify-content: space-between; height: 60px; gap: 16px; }
+.marca { display: flex; align-items: center; gap: 10px; font-weight: 650; letter-spacing: -0.01em; color: var(--texto); }
+.marca:hover { text-decoration: none; }
+.marca svg { width: 26px; height: 26px; }
+nav.enlaces { display: flex; align-items: center; gap: 22px; font-size: 15px; }
+nav.enlaces a { color: var(--suave); }
+nav.enlaces a:hover { color: var(--texto); text-decoration: none; }
+.idioma { display: flex; border: 1px solid var(--borde); border-radius: 999px; overflow: hidden; }
+.idioma button {
+  font: inherit; font-size: 13px; padding: 4px 10px; border: 0; background: transparent; color: var(--suave); cursor: pointer;
+}
+.idioma button[aria-pressed="true"] { background: var(--acento); color: #fff; }
+.portada { padding: 96px 0 40px; text-align: center; }
+.etiqueta {
+  display: inline-block; font-size: 13px; color: var(--acento-2); border: 1px solid rgba(63, 208, 201, 0.35);
+  border-radius: 999px; padding: 4px 12px; margin-bottom: 22px; letter-spacing: 0.02em;
+}
+h1 {
+  font-size: clamp(40px, 7vw, 76px); line-height: 1.02; letter-spacing: -0.035em; margin: 0 0 22px; font-weight: 750;
+  background: linear-gradient(180deg, #fff 30%, #b9b3ff 100%); -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.bajada { font-size: clamp(18px, 2.3vw, 22px); color: var(--suave); max-width: 720px; margin: 0 auto 34px; }
+.acciones { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.boton {
+  display: inline-flex; align-items: center; gap: 8px; padding: 12px 22px; border-radius: 999px; font-weight: 600;
+  font-size: 16px; border: 1px solid var(--borde); color: var(--texto); background: var(--tarjeta);
+}
+.boton:hover { text-decoration: none; border-color: rgba(255, 255, 255, 0.25); }
+.boton.principal { background: var(--acento); border-color: var(--acento); color: #fff; box-shadow: 0 8px 30px rgba(139, 123, 255, 0.35); }
+.boton.principal:hover { filter: brightness(1.08); }
+.vitrina { margin: 56px auto 0; max-width: 980px; position: relative; }
+.vitrina::before {
+  content: ""; position: absolute; inset: -40px; z-index: -1; filter: blur(50px);
+  background: radial-gradient(closest-side, rgba(139, 123, 255, 0.35), transparent);
+}
+.vitrina img {
+  width: 100%; height: auto; display: block; border-radius: var(--radio); border: 1px solid var(--borde);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
+}
+.vitrina figcaption { font-size: 14px; color: var(--suave); margin-top: 12px; text-align: center; }
+section { padding: 80px 0 0; }
+h2 { font-size: clamp(28px, 4vw, 40px); letter-spacing: -0.025em; margin: 0 0 10px; line-height: 1.1; }
+.intro { color: var(--suave); max-width: 700px; margin: 0 0 34px; }
+.rejilla { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+.tarjeta {
+  background: var(--tarjeta); border: 1px solid var(--borde); border-radius: var(--radio); padding: 22px 22px 20px;
+}
+.tarjeta .icono {
+  width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center; margin-bottom: 14px; font-size: 20px;
+  background: linear-gradient(135deg, rgba(139, 123, 255, 0.35), rgba(63, 208, 201, 0.25));
+}
+.tarjeta h3 { margin: 0 0 6px; font-size: 18px; letter-spacing: -0.01em; }
+.tarjeta p { margin: 0; color: var(--suave); font-size: 15.5px; }
+.pasos { counter-reset: paso; display: grid; gap: 14px; max-width: 760px; }
+.paso {
+  counter-increment: paso; position: relative; padding: 18px 20px 18px 62px; background: var(--tarjeta);
+  border: 1px solid var(--borde); border-radius: var(--radio);
+}
+.paso::before {
+  content: counter(paso); position: absolute; left: 18px; top: 17px; width: 28px; height: 28px; border-radius: 50%;
+  display: grid; place-items: center; font-weight: 700; font-size: 14px; background: var(--acento); color: #fff;
+}
+.paso p { margin: 0 0 8px; }
+.paso p:last-child { margin-bottom: 0; }
+.codigo { position: relative; }
+.codigo pre {
+  margin: 0; background: #05060a; border: 1px solid var(--borde); border-radius: 12px; padding: 14px 16px; overflow-x: auto;
+  font-size: 14.5px; color: #d8dcf0;
+}
+.copiar {
+  position: absolute; top: 8px; right: 8px; font: inherit; font-size: 12.5px; padding: 4px 10px; border-radius: 8px;
+  border: 1px solid var(--borde); background: var(--fondo-2); color: var(--suave); cursor: pointer;
+}
+.copiar:hover { color: var(--texto); }
+.nota { font-size: 14.5px; color: var(--suave); }
+.cifras { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+.cifra { background: var(--tarjeta); border: 1px solid var(--borde); border-radius: var(--radio); padding: 22px; }
+.cifra b { display: block; font-size: 34px; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 6px;
+  background: linear-gradient(90deg, var(--acento), var(--acento-2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.cifra span { color: var(--suave); font-size: 15px; }
+.privacidad { display: grid; gap: 12px; max-width: 760px; padding: 0; list-style: none; margin: 0; }
+.privacidad li { padding-left: 30px; position: relative; color: var(--suave); }
+.privacidad li::before { content: "✓"; position: absolute; left: 0; top: 0; color: var(--acento-2); font-weight: 700; }
+.privacidad li b { color: var(--texto); }
+.autor {
+  display: flex; gap: 22px; align-items: center; flex-wrap: wrap; background: var(--tarjeta); border: 1px solid var(--borde);
+  border-radius: var(--radio); padding: 24px;
+}
+.avatar {
+  width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; font-size: 26px; font-weight: 700; flex: none;
+  background: linear-gradient(135deg, var(--acento), var(--rosa)); color: #fff;
+}
+.autor p { margin: 4px 0 0; color: var(--suave); }
+footer { padding: 80px 0 48px; color: var(--suave); font-size: 14px; }
+footer .envoltura { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; border-top: 1px solid var(--borde); padding-top: 24px; }
+[data-en] { display: none; }
+html[lang="en"] [data-es] { display: none; }
+html[lang="en"] [data-en] { display: revert; }
+@media (max-width: 720px) {
+  nav.enlaces a { display: none; }
+  .portada { padding-top: 64px; }
+  section { padding-top: 64px; }
+}
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+</style>
+</head>
+<body>
+<canvas class="cielo" aria-hidden="true"></canvas>
+<div class="niebla" aria-hidden="true"></div>
+
+<header class="barra">
+  <div class="envoltura">
+    <a class="marca" href="#">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8b7bff"/><stop offset="1" stop-color="#3fd0c9"/></linearGradient></defs><circle cx="16" cy="16" r="14" fill="none" stroke="url(#g)" stroke-width="2"/><circle cx="11" cy="12" r="2.6" fill="#8b7bff"/><circle cx="21" cy="11" r="2.2" fill="#ff6fae"/><circle cx="19" cy="21" r="2.6" fill="#3fd0c9"/><circle cx="10" cy="20" r="1.8" fill="#f5b942"/><path d="M11 12 21 11 19 21 10 20Z M11 12 19 21" fill="none" stroke="#c9c4ff" stroke-width="1" opacity=".7"/></svg>
+      Neuromapa
+    </a>
+    <nav class="enlaces" aria-label="Secciones">
+      <a href="#que-hace"><span data-es>Qué hace</span><span data-en>Features</span></a>
+      <a href="#instalar"><span data-es>Instalar</span><span data-en>Install</span></a>
+      <a href="#privacidad"><span data-es>Privacidad</span><span data-en>Privacy</span></a>
+      <a href="https://github.com/lumiel777/neuromapa">GitHub</a>
+      <div class="idioma" role="group" aria-label="Idioma / Language">
+        <button type="button" data-idioma="es" aria-pressed="true">ES</button>
+        <button type="button" data-idioma="en" aria-pressed="false">EN</button>
+      </div>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="envoltura">
+    <section class="portada">
+      <span class="etiqueta"><span data-es>Plugin libre para Claude Code · licencia MIT</span><span data-en>Free plugin for Claude Code · MIT license</span></span>
+      <h1><span data-es>La memoria de Claude,<br>como un cerebro.</span><span data-en>Claude's memory,<br>as a brain.</span></h1>
+      <p class="bajada">
+        <span data-es>Neuromapa dibuja la memoria de Claude Code como un cerebro 3D que se mueve en vivo mientras trabaja, revisa que tus notas sigan siendo ciertas y le da a Claude lo que ya sabe antes de que lo vuelva a averiguar.</span>
+        <span data-en>Neuromapa draws Claude Code's memory as a live 3D brain that moves while Claude works, checks that your notes are still true, and hands Claude what it already knows before it looks it up again.</span>
+      </p>
+      <div class="acciones">
+        <a class="boton principal" href="#instalar"><span data-es>Instalarlo</span><span data-en>Install it</span></a>
+        <a class="boton" href="https://github.com/lumiel777/neuromapa"><span data-es>Ver el código</span><span data-en>View the code</span></a>
+        <a class="boton" href="https://github.com/lumiel777/neuromapa/wiki"><span data-es>Guía paso a paso</span><span data-en>Step-by-step guide</span></a>
+      </div>
+      <figure class="vitrina">
+        <img src="neuromapa.gif" alt="Neuromapa: un cerebro de puntos luminosos con las notas de ejemplo de la demo, conexiones curvas y rayos de actividad" width="1280" height="720" loading="eager">
+        <figcaption><span data-es>Con las notas inventadas de la demo: cada nota es una figura y cada vez que una nombra a otra, una conexión.</span><span data-en>With the demo's made-up notes: each note is a shape, and each time one names another, a connection.</span></figcaption>
+      </figure>
+    </section>
+
+    <section id="que-hace">
+      <h2><span data-es>Qué hace</span><span data-en>What it does</span></h2>
+      <p class="intro"><span data-es>Junta la memoria de Claude Code, tus CLAUDE.md y los documentos que elijas, y trabaja con ellos en tu computadora.</span><span data-en>It gathers Claude Code's memory, your CLAUDE.md files and the documents you choose, and works with them on your computer.</span></p>
+      <div class="rejilla">
+        <article class="tarjeta"><div class="icono">🧠</div><h3><span data-es>Un mapa en vivo</span><span data-en>A live map</span></h3><p><span data-es>Ves qué nota lee Claude, qué archivo edita, qué agente lanzó y en qué chat, mientras pasa.</span><span data-en>See which note Claude reads, which file it edits, which agent it starts and in which chat, as it happens.</span></p></article>
+        <article class="tarjeta"><div class="icono">🩺</div><h3><span data-es>Un médico</span><span data-en>A doctor</span></h3><p><span data-es>Avisa enlaces rotos, notas repetidas, citas archivo:línea que se corrieron, commits que no existen y datos que dejaron de ser ciertos.</span><span data-en>Flags broken links, duplicate notes, file:line references that drifted, commits that don't exist and facts that stopped being true.</span></p></article>
+        <article class="tarjeta"><div class="icono">🔎</div><h3><span data-es>Un buscador para Claude</span><span data-en>A search for Claude</span></h3><p><span data-es>Le dice qué notas leer primero, avisa los datos viejos y nombra el código que esas notas citan, para comprobarlo.</span><span data-en>Tells Claude which notes to read first, warns about stale facts and names the code those notes cite, so it can check.</span></p></article>
+        <article class="tarjeta"><div class="icono">🌱</div><h3><span data-es>Aprende de tu uso</span><span data-en>Learns from use</span></h3><p><span data-es>Lo que se usa junto se conecta y lo que no se repite se olvida, como un cerebro. Cada uno aprende en su propia computadora.</span><span data-en>What gets used together connects and what isn't repeated fades, like a brain. Everyone learns on their own computer.</span></p></article>
+        <article class="tarjeta"><div class="icono">🗺️</div><h3><span data-es>Mapa del código</span><span data-en>Code map</span></h3><p><span data-es>Funciones y clases con sus renglones en 12 lenguajes, y quién llama a quién, sin instalar nada más.</span><span data-en>Functions and classes with their lines in 12 languages, and who calls whom, with nothing else to install.</span></p></article>
+        <article class="tarjeta"><div class="icono">🔔</div><h3><span data-es>Avisos a tiempo</span><span data-en>Timely warnings</span></h3><p><span data-es>Cuando Claude crea una memoria parecida a otra, cuando dos chats editan el mismo archivo o cuando aparece un problema nuevo.</span><span data-en>When Claude writes a memory similar to another, when two chats edit the same file or when a new problem shows up.</span></p></article>
+      </div>
+    </section>
+
+    <section id="medido">
+      <h2><span data-es>Lo que se midió</span><span data-en>What was measured</span></h2>
+      <p class="intro"><span data-es>450 corridas reales de Claude Code sobre 50 preguntas de un proyecto grande, juzgadas por 30 jueces ciegos.</span><span data-en>450 real Claude Code runs over 50 questions from a large project, graded by 30 blind judges.</span></p>
+      <div class="cifras">
+        <div class="cifra"><b>14–18 %</b><span data-es>menos gasto por pregunta</span><span data-en>lower cost per question</span></div>
+        <div class="cifra"><b>20 → 13</b><span data-es>errores graves con Sonnet</span><span data-en>serious errors with Sonnet</span></div>
+        <div class="cifra"><b>7 → 3</b><span data-es>datos viejos dichos como actuales (Opus)</span><span data-en>stale facts stated as current (Opus)</span></div>
+      </div>
+    </section>
+
+    <section id="instalar">
+      <h2><span data-es>Instalarlo</span><span data-en>Install it</span></h2>
+      <p class="intro"><span data-es>Hace falta Python 3.10 o más nuevo y git.</span><span data-en>You need Python 3.10 or newer, and git.</span></p>
+      <div class="pasos">
+        <div class="paso">
+          <p><span data-es>En una terminal, suma el plugin a Claude Code:</span><span data-en>In a terminal, add the plugin to Claude Code:</span></p>
+          <div class="codigo"><pre><code>claude plugin marketplace add lumiel777/neuromapa
+claude plugin install neuromapa@neuromapa</code></pre><button type="button" class="copiar">Copiar</button></div>
+        </div>
+        <div class="paso"><p><span data-es>Cierra y vuelve a abrir Claude Code: el plugin entra recién ahí.</span><span data-en>Close and reopen Claude Code: the plugin loads then.</span></p></div>
+        <div class="paso">
+          <p><span data-es>En una sesión de Claude Code, abre el mapa:</span><span data-en>In a Claude Code session, open the map:</span></p>
+          <div class="codigo"><pre><code>/neuromapa:abrir</code></pre><button type="button" class="copiar">Copiar</button></div>
+          <p class="nota"><span data-es>Sin notas todavía, <code>/neuromapa:abrir --demo</code> muestra uno con notas de ejemplo.</span><span data-en>No notes yet? <code>/neuromapa:abrir --demo</code> shows one with sample notes.</span></p>
+        </div>
+      </div>
+    </section>
+
+    <section id="privacidad">
+      <h2><span data-es>Privacidad</span><span data-en>Privacy</span></h2>
+      <p class="intro"><span data-es>Tus notas son tuyas y se quedan en tu computadora.</span><span data-en>Your notes are yours and stay on your computer.</span></p>
+      <ul class="privacidad">
+        <li><span data-es><b>Nada sale de tu computadora.</b> No hay telemetría ni servidor propio: el mapa escucha solo en 127.0.0.1 y pide una clave.</span><span data-en><b>Nothing leaves your computer.</b> No telemetry and no server of ours: the map listens only on 127.0.0.1 and asks for a key.</span></li>
+        <li><span data-es><b>No guarda lo que escribes.</b> El registro en vivo anota qué tipo de cosa hizo Claude y en qué archivo, nunca los comandos, los mensajes ni las consultas.</span><span data-en><b>It doesn't store what you type.</b> The live log records what kind of thing Claude did and on which file, never commands, messages or queries.</span></li>
+        <li><span data-es><b>Solo cambia una nota si la apruebas.</b> Los arreglos se proponen; los cambios grandes muestran el plan primero y guardan un respaldo.</span><span data-en><b>It only changes a note if you approve.</b> Fixes are proposed; bigger changes show the plan first and keep a backup.</span></li>
+        <li><span data-es><b>Código abierto.</b> Todo lo que corre está en GitHub, con licencia MIT, para leerlo.</span><span data-en><b>Open source.</b> Everything that runs is on GitHub, MIT licensed, for anyone to read.</span></li>
+      </ul>
+    </section>
+
+    <section id="autor">
+      <h2><span data-es>Quién lo hace</span><span data-en>Who makes it</span></h2>
+      <div class="autor">
+        <div class="avatar" aria-hidden="true">N</div>
+        <div>
+          <b>Cristofer Bonifacio</b>
+          <p><span data-es>Neuromapa nace de su propio trabajo con Claude Code y se publica libre para quien lo quiera usar. Preguntas, errores e ideas: en </span><span data-en>Neuromapa grew out of their own work with Claude Code and is published for free for anyone who wants it. Questions, bugs and ideas: on </span><a href="https://github.com/lumiel777/neuromapa/issues">GitHub Issues</a>.</p>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<footer>
+  <div class="envoltura">
+    <span>© 2026 Cristofer Bonifacio · <span data-es>Licencia</span><span data-en>License</span> <a href="https://github.com/lumiel777/neuromapa/blob/main/LICENSE">MIT</a></span>
+    <span><a href="https://github.com/lumiel777/neuromapa">GitHub</a> · <a href="https://github.com/lumiel777/neuromapa/wiki">Wiki</a> · <a href="https://github.com/lumiel777/neuromapa/blob/main/CHANGELOG.md"><span data-es>Cambios</span><span data-en>Changelog</span></a></span>
+  </div>
+</footer>
+
+<script>
+(() => {
+  const html = document.documentElement;
+  const botones = document.querySelectorAll('[data-idioma]');
+  const poner = idioma => {
+    html.lang = idioma;
+    botones.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.idioma === idioma)));
+    document.querySelectorAll('.copiar').forEach(b => { b.textContent = idioma === 'en' ? 'Copy' : 'Copiar'; });
+    try { localStorage.setItem('neuromapa-idioma', idioma); } catch (e) {}
+  };
+  let guardado = null;
+  try { guardado = localStorage.getItem('neuromapa-idioma'); } catch (e) {}
+  poner(guardado || ((navigator.language || 'es').toLowerCase().startsWith('es') ? 'es' : 'en'));
+  botones.forEach(b => b.addEventListener('click', () => poner(b.dataset.idioma)));
+
+  document.querySelectorAll('.copiar').forEach(boton => boton.addEventListener('click', async () => {
+    const texto = boton.parentElement.querySelector('code').innerText;
+    try {
+      await navigator.clipboard.writeText(texto);
+      boton.textContent = html.lang === 'en' ? 'Copied' : 'Copiado';
+      setTimeout(() => { boton.textContent = html.lang === 'en' ? 'Copy' : 'Copiar'; }, 1600);
+    } catch (e) {}
+  }));
+
+  const lienzo = document.querySelector('.cielo');
+  const ctx = lienzo.getContext('2d');
+  const quieto = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let estrellas = [];
+  const armar = () => {
+    const escala = Math.min(window.devicePixelRatio || 1, 2);
+    lienzo.width = innerWidth * escala;
+    lienzo.height = innerHeight * escala;
+    ctx.setTransform(escala, 0, 0, escala, 0, 0);
+    const cuantas = Math.round(innerWidth * innerHeight / 5200);
+    estrellas = Array.from({ length: cuantas }, () => ({
+      x: Math.random() * innerWidth, y: Math.random() * innerHeight, r: Math.random() * 1.2 + 0.2,
+      fase: Math.random() * Math.PI * 2, ritmo: 0.4 + Math.random() * 1.2
+    }));
+  };
+  const dibujar = t => {
+    ctx.clearRect(0, 0, innerWidth, innerHeight);
+    for (const e of estrellas) {
+      const brillo = quieto ? 0.6 : 0.35 + 0.35 * Math.sin(e.fase + t / 1000 * e.ritmo);
+      ctx.globalAlpha = Math.max(0.08, brillo);
+      ctx.fillStyle = '#dfe3ff';
+      ctx.beginPath();
+      ctx.arc(e.x, e.y, e.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    if (!quieto) requestAnimationFrame(dibujar);
+  };
+  armar();
+  addEventListener('resize', armar);
+  requestAnimationFrame(dibujar);
+})();
+</script>
+</body>
+</html>
