@@ -120,7 +120,8 @@ claude plugin update neuromapa@neuromapa
 
 Después cerrá y volvé a abrir Claude Code: la versión nueva entra recién ahí. Si el mapa estaba prendido, abrilo con
 `/neuromapa:abrir --reiniciar`, porque el que sigue prendido tiene la versión de antes. Tu configuración y lo aprendido
-quedan como estaban.
+quedan como estaban. Para confirmar qué versión quedó, `claude plugin list` la muestra al lado de neuromapa; las
+novedades de cada versión están en el [CHANGELOG](CHANGELOG.md).
 
 ## Usar
 
