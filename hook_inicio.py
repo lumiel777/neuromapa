@@ -32,8 +32,15 @@ def main():
             return
         destino = os.environ.get("CLAUDE_ENV_FILE", "").strip()
         if destino:
-            with open(destino, "a", encoding="utf-8", newline="\n") as f:
-                f.write("export CLAUDE_PLUGIN_OPTION_CARPETA_DATOS='" + carpeta.replace("'", "'\\''") + "'\n")
+            line = "export CLAUDE_PLUGIN_OPTION_CARPETA_DATOS='" + carpeta.replace("'", "'\\''") + "'\n"
+            try:
+                with open(destino, encoding="utf-8") as f:
+                    already_present = line in f.read()
+            except OSError:
+                already_present = False
+            if not already_present:
+                with open(destino, "a", encoding="utf-8", newline="\n") as f:
+                    f.write(line)
         mensajes = []
         if una_vez(carpeta, BIENVENIDA):
             mensajes.append(TEXTO_BIENVENIDA)

@@ -3,6 +3,14 @@
 Las versiones siguen el número de `.claude-plugin/plugin.json` (`claude plugin list` lo muestra, y Claude lo ve con `neuromapa --version`). Cada versión que
 sale sube ese número; si no, la actualización puede no traer nada (ver [CONTRIBUTING.md](CONTRIBUTING.md)).
 
+## 0.1.12
+
+- Bash ya no se rompe en charlas largas. Al arrancar y en cada compactación, Neuromapa agregaba la misma línea al
+  archivo de entorno que Claude Code mete en cada comando de Bash. En Windows, Git Bash corta ese comando a unos 8 KB:
+  el archivo llegó a 81 líneas repetidas, el corte cayó dentro de una comilla y todo comando de Bash fallaba con
+  «unexpected EOF while looking for matching». Ahora la línea se escribe una sola vez. Lo encontró y lo arregló
+  @therru-hub (PR #5).
+
 ## 0.1.11
 
 Esta versión sale del estudio de graphify v8: seguridad primero, después un médico más fino, la pista, el mapa de
